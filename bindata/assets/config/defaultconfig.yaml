@@ -170,6 +170,8 @@ apiServerArguments:
     - /etc/kubernetes/static-pod-certs/secrets/service-network-serving-certkey/tls.crt
   tls-private-key-file:
     - /etc/kubernetes/static-pod-certs/secrets/service-network-serving-certkey/tls.key
+  watch-cache:
+    - "false"
 authConfig:
   oauthMetadataFile: ""
 consolePublicURL: ""
