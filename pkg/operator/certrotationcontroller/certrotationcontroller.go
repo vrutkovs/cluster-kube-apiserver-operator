@@ -3,14 +3,18 @@ package certrotationcontroller
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
@@ -45,6 +49,9 @@ type CertRotationController struct {
 	recorder events.Recorder
 
 	cachesToSync []cache.InformerSynced
+
+	leaderElectionID     string
+	leaderElectionConfig leaderelection.LeaderElectionConfig
 }
 
 func NewCertRotationController(
@@ -94,6 +101,7 @@ func newCertRotationController(
 	day time.Duration,
 	refreshOnlyWhenExpired bool,
 ) (*CertRotationController, error) {
+
 	ret := &CertRotationController{
 		networkLister:        configInformer.Config().V1().Networks().Lister(),
 		infrastructureLister: configInformer.Config().V1().Infrastructures().Lister(),
@@ -112,6 +120,31 @@ func newCertRotationController(
 			configInformer.Config().V1().Networks().Informer().HasSynced,
 			configInformer.Config().V1().Infrastructures().Informer().HasSynced,
 		},
+	}
+
+	// Setup leader election on controller level
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	ret.leaderElectionID = hostname
+
+	lock := &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
+			Name:      "cert-rotation-lock",
+			Namespace: operatorclient.OperatorNamespace,
+		},
+		Client: kubeClient.CoordinationV1(),
+		LockConfig: resourcelock.ResourceLockConfig{
+			Identity: ret.leaderElectionID,
+		},
+	}
+	ret.leaderElectionConfig = leaderelection.LeaderElectionConfig{
+		Lock:            lock,
+		ReleaseOnCancel: true,
+		LeaseDuration:   60 * time.Second,
+		RenewDeadline:   15 * time.Second,
+		RetryPeriod:     5 * time.Second,
 	}
 
 	configInformer.Config().V1().Networks().Informer().AddEventHandler(ret.serviceHostnameEventHandler())
@@ -743,6 +776,27 @@ func (c *CertRotationController) RunOnce() error {
 }
 
 func (c *CertRotationController) Run(ctx context.Context, workers int) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	c.leaderElectionConfig.Callbacks = leaderelection.LeaderCallbacks{
+		OnStartedLeading: func(ctx context.Context) {
+			c.RealRun(ctx, workers)
+		},
+		OnStoppedLeading: func() {
+			defer cancel()
+			klog.Infof("leader lost: %s", c.leaderElectionID)
+		},
+		OnNewLeader: func(identity string) {
+			if identity == c.leaderElectionID {
+				return
+			}
+			klog.Infof("new leader elected: %s", identity)
+		},
+	}
+	leaderelection.RunOrDie(ctx, c.leaderElectionConfig)
+}
+
+func (c *CertRotationController) RealRun(ctx context.Context, workers int) {
 	klog.Infof("Starting CertRotation")
 	defer klog.Infof("Shutting down CertRotation")
 	c.WaitForReady(ctx.Done())
