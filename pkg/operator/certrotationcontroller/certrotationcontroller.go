@@ -26,9 +26,6 @@ import (
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 )
 
-// defaultRotationDay is the default rotation base for all cert rotation operations.
-const defaultRotationDay = 24 * time.Hour
-
 type CertRotationController struct {
 	certRotators []factory.Controller
 
@@ -119,14 +116,19 @@ func newCertRotationController(
 	configInformer.Config().V1().Networks().Informer().AddEventHandler(ret.serviceHostnameEventHandler())
 	configInformer.Config().V1().Infrastructures().Informer().AddEventHandler(ret.externalLoadBalancerHostnameEventHandler())
 
-	rotationDay := defaultRotationDay
+	monthPeriod := time.Hour * 24 * 30
+	yearPeriod := monthPeriod * 12
+	tenMonthPeriod := monthPeriod * 10
+
 	featureGates, err := featureGateAccessor.CurrentFeatureGates()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get FeatureGates: %w", err)
 	}
 
 	if featureGates.Enabled(features.FeatureShortCertRotation) {
-		rotationDay = time.Minute
+		monthPeriod = 30 * time.Minute
+		yearPeriod = 60 * time.Minute
+		tenMonthPeriod = 45 * time.Minute
 	}
 
 	certRotator := certrotation.NewCertRotationController(
@@ -137,8 +139,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -166,8 +168,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{Name: "system:openshift-aggregator"},
@@ -194,10 +196,10 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 1 * 365 * defaultRotationDay, // this comes from the installer
+			Validity: yearPeriod, // this comes from the installer
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
-			Refresh:                292 * defaultRotationDay,
+			Refresh:                tenMonthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -225,8 +227,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{Name: "system:kube-apiserver", Groups: []string{"kube-master"}},
@@ -253,12 +255,12 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
+			Validity: 10 * yearPeriod, // this comes from the installer
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
 			// Given that in this case rotation will be after 8y,
 			// it means we effectively do not rotate.
-			Refresh:                8 * 365 * defaultRotationDay,
+			Refresh:                8 * yearPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -286,8 +288,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ServingRotation{
 				Hostnames: func() []string { return []string{"localhost", "127.0.0.1"} },
@@ -314,12 +316,12 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
+			Validity: 10 * yearPeriod, // this comes from the installer
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
 			// Given that in this case rotation will be after 8y,
 			// it means we effectively do not rotate.
-			Refresh:                8 * 365 * defaultRotationDay,
+			Refresh:                8 * yearPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -347,8 +349,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ServingRotation{
 				Hostnames:        ret.serviceNetwork.GetHostnames,
@@ -376,12 +378,12 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
+			Validity: 10 * yearPeriod, // this comes from the installer
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
 			// Given that in this case rotation will be after 8y,
 			// it means we effectively do not rotate.
-			Refresh:                8 * 365 * defaultRotationDay,
+			Refresh:                8 * yearPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -409,8 +411,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ServingRotation{
 				Hostnames:        ret.externalLoadBalancer.GetHostnames,
@@ -438,12 +440,12 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
+			Validity: 10 * yearPeriod, // this comes from the installer
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
 			// Given that in this case rotation will be after 8y,
 			// it means we effectively do not rotate.
-			Refresh:                8 * 365 * defaultRotationDay,
+			Refresh:                8 * yearPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -471,8 +473,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ServingRotation{
 				Hostnames:        ret.internalLoadBalancer.GetHostnames,
@@ -500,12 +502,12 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
+			Validity: 10 * yearPeriod, // this comes from the installer
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
 			// Given that in this case rotation will be after 8y,
 			// it means we effectively do not rotate.
-			Refresh:       8 * 365 * defaultRotationDay,
+			Refresh:       8 * yearPeriod,
 			Informer:      kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:        kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
 			Client:        kubeClient.CoreV1(),
@@ -532,12 +534,12 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 10 * 365 * defaultRotationDay,
+			Validity: 10 * yearPeriod,
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
 			// Given that in this case rotation will be after 8y,
 			// it means we effectively do not rotate.
-			Refresh: 8 * 365 * defaultRotationDay,
+			Refresh: 8 * yearPeriod,
 			CertCreator: &certrotation.ServingRotation{
 				Hostnames: func() []string { return []string{"localhost-recovery"} },
 			},
@@ -563,8 +565,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               60 * defaultRotationDay,
-			Refresh:                30 * defaultRotationDay,
+			Validity:               2 * monthPeriod,
+			Refresh:                monthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -592,8 +594,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{Name: "system:kube-controller-manager"},
@@ -620,8 +622,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               60 * defaultRotationDay,
-			Refresh:                30 * defaultRotationDay,
+			Validity:               2 * monthPeriod,
+			Refresh:                monthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -649,8 +651,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{Name: "system:kube-scheduler"},
@@ -677,8 +679,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               60 * defaultRotationDay,
-			Refresh:                30 * defaultRotationDay,
+			Validity:               2 * monthPeriod,
+			Refresh:                monthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -706,8 +708,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{Name: "system:control-plane-node-admin", Groups: []string{"system:masters"}},
@@ -734,8 +736,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               60 * defaultRotationDay,
-			Refresh:                30 * defaultRotationDay,
+			Validity:               2 * monthPeriod,
+			Refresh:                monthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -763,8 +765,8 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity:               30 * rotationDay,
-			Refresh:                15 * rotationDay,
+			Validity:               monthPeriod,
+			Refresh:                monthPeriod / 2,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{Name: "system:serviceaccount:openshift-kube-apiserver:check-endpoints"},
@@ -791,10 +793,10 @@ func newCertRotationController(
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
 			},
-			Validity: 1 * 365 * defaultRotationDay,
+			Validity: yearPeriod,
 			// Refresh set to 80% of the validity.
 			// This range is consistent with most other signers defined in this pkg.
-			Refresh:                292 * defaultRotationDay,
+			Refresh:                tenMonthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets(),
 			Lister:                 kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().Secrets().Lister(),
@@ -825,9 +827,9 @@ func newCertRotationController(
 			// This needs to live longer then control plane certs so there is high chance that if a cluster breaks
 			// because of expired certs these are still valid to use for collecting data using localhost-recovery
 			// endpoint with long lived serving certs for localhost.
-			Validity: 2 * 365 * defaultRotationDay,
+			Validity: 2 * yearPeriod,
 			// We rotate sooner so certs are always valid for 90 days (30 days more then kube-control-plane-signer)
-			Refresh:                30 * defaultRotationDay,
+			Refresh:                monthPeriod,
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			CertCreator: &certrotation.ClientRotation{
 				UserInfo: &user.DefaultInfo{
