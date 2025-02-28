@@ -386,7 +386,10 @@ func newCertRotationController(
 			Name:      "loadbalancer-serving-signer",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
-				Description:   "Signer used by the kube-apiserver operator to create serving certificates for the kube-apiserver via internal and external load balancers.",
+				// ExternalLoadBalancerServing is not being tested directly, but this CA will be rotated when
+				// other signers are updated and needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[Conformance][sig-api-machinery][Feature:APIServer] kube-apiserver should be accessible via api-int endpoint [Suite:openshift/conformance/parallel/minimal]'",
+				Description:                      "Signer used by the kube-apiserver operator to create serving certificates for the kube-apiserver via internal and external load balancers.",
 			},
 			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
 			// Refresh set to 80% of the validity.
@@ -405,7 +408,10 @@ func newCertRotationController(
 			Name:      "loadbalancer-serving-ca",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
-				Description:   "CA for recognizing the kube-apiserver when connecting via the internal or external load balancers.",
+				// ExternalLoadBalancerServing is not being tested directly, but this CA will be rotated when
+				// other signers are updated and needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[Conformance][sig-api-machinery][Feature:APIServer] kube-apiserver should be accessible via api-int endpoint [Suite:openshift/conformance/parallel/minimal]'",
+				Description:                      "CA for recognizing the kube-apiserver when connecting via the internal or external load balancers.",
 			},
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().ConfigMaps(),
@@ -446,7 +452,10 @@ func newCertRotationController(
 			Name:      "loadbalancer-serving-signer",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
-				Description:   "Signer used by the kube-apiserver operator to create serving certificates for the kube-apiserver via internal and external load balancers.",
+				// InternalLoadBalancerServing is not being tested directly, but this CA will be rotated when
+				// other signers are updated and needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[Conformance][sig-api-machinery][Feature:APIServer] kube-apiserver should be accessible via api-int endpoint [Suite:openshift/conformance/parallel/minimal]'",
+				Description:                      "Signer used by the kube-apiserver operator to create serving certificates for the kube-apiserver via internal and external load balancers.",
 			},
 			Validity: 10 * 365 * defaultRotationDay, // this comes from the installer
 			// Refresh set to 80% of the validity.
@@ -465,7 +474,10 @@ func newCertRotationController(
 			Name:      "loadbalancer-serving-ca",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
 				JiraComponent: "kube-apiserver",
-				Description:   "CA for recognizing the kube-apiserver when connecting via the internal or external load balancers.",
+				// InternalLoadBalancerServing is not being tested directly, but this CA will be rotated when
+				// other signers are updated and needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[Conformance][sig-api-machinery][Feature:APIServer] kube-apiserver should be accessible via api-int endpoint [Suite:openshift/conformance/parallel/minimal]'",
+				Description:                      "CA for recognizing the kube-apiserver when connecting via the internal or external load balancers.",
 			},
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
 			Informer:               kubeInformersForNamespaces.InformersFor(operatorclient.OperatorNamespace).Core().V1().ConfigMaps(),
@@ -571,8 +583,9 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// This test checks that kube-controller-manager can contact kube-apiserver and create pods for deployments
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "Signer for kube-controller-manager and kube-scheduler client certificates.",
 			},
 			Validity:               60 * defaultRotationDay,
@@ -587,8 +600,9 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer-ca",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// This test checks that kube-controller-manager can contact kube-apiserver and create pods for deployments
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "CA for kube-apiserver to recognize the kube-controller-manager and kube-scheduler client certificates.",
 			},
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
@@ -628,8 +642,9 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// This test checks that kube-scheduler can contact kube-apiserver and pick nodes for pods
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "Signer for kube-controller-manager and kube-scheduler client certificates.",
 			},
 			Validity:               60 * defaultRotationDay,
@@ -644,8 +659,9 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer-ca",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// This test checks that kube-scheduler can contact kube-apiserver and pick nodes for pods
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "CA for kube-apiserver to recognize the kube-controller-manager and kube-scheduler client certificates.",
 			},
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
@@ -685,8 +701,9 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// ControlPlaneNodeAdminClient signer is not being tested directly, but this signer needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "Signer for kube-controller-manager and kube-scheduler client certificates.",
 			},
 			Validity:               60 * defaultRotationDay,
@@ -701,8 +718,10 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer-ca",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// ControlPlaneNodeAdminClient is not being tested directly, but this CA will be rotated when
+				// other signers are updated and needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "CA for kube-apiserver to recognize the kube-controller-manager and kube-scheduler client certificates.",
 			},
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
@@ -741,8 +760,9 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// CheckEndpointsClient signer is not being tested directly, but this signer needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "Signer for kube-controller-manager and kube-scheduler client certificates.",
 			},
 			Validity:               60 * defaultRotationDay,
@@ -757,8 +777,10 @@ func newCertRotationController(
 			Namespace: operatorclient.OperatorNamespace,
 			Name:      "kube-control-plane-signer-ca",
 			AdditionalAnnotations: certrotation.AdditionalAnnotations{
-				JiraComponent:                    "kube-apiserver",
-				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'operator conditions kube-apiserver'",
+				JiraComponent: "kube-apiserver",
+				// CheckEndpointsClient CA is not being tested directly, but this CA will be rotated when
+				// other signers are updated and needs to have the same metadata set
+				AutoRegenerateAfterOfflineExpiry: "https://github.com/openshift/cluster-kube-apiserver-operator/pull/1631,'[sig-apps] Deployment RollingUpdateDeployment should delete old pods and create new ones [Conformance] [Suite:openshift/conformance/parallel/minimal] [Suite:k8s]'",
 				Description:                      "CA for kube-apiserver to recognize the kube-controller-manager and kube-scheduler client certificates.",
 			},
 			RefreshOnlyWhenExpired: refreshOnlyWhenExpired,
