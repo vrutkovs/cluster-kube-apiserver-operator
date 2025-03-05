@@ -18,7 +18,6 @@ import (
 	"github.com/openshift/library-go/pkg/crypto"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/resource/resourcehelper"
-	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
@@ -141,7 +140,7 @@ func (c RotatedSelfSignedCertKeySecret) EnsureTargetCertKeyPair(ctx context.Cont
 		targetCertKeyPairSecret = actualTargetCertKeyPairSecret
 	} else if updateRequired {
 		actualTargetCertKeyPairSecret, err := c.Client.Secrets(c.Namespace).Update(ctx, targetCertKeyPairSecret, metav1.UpdateOptions{})
-		if strings.Contains(err.Error(), genericregistry.OptimisticLockErrorMsg) {
+		if apierrors.IsConflict(err) {
 			// ignore error if its attempting to update outdated version of the secret
 			return nil, nil
 		}

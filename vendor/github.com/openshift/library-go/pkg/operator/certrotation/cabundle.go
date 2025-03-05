@@ -7,13 +7,11 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
@@ -107,7 +105,7 @@ func (c CABundleConfigMap) EnsureConfigMapCABundle(ctx context.Context, signingC
 		caBundleConfigMap = actualCABundleConfigMap
 	} else if updateRequired {
 		actualCABundleConfigMap, err := c.Client.ConfigMaps(c.Namespace).Update(ctx, caBundleConfigMap, metav1.UpdateOptions{})
-		if strings.Contains(err.Error(), genericregistry.OptimisticLockErrorMsg) {
+		if apierrors.IsConflict(err) {
 			// ignore error if its attempting to update outdated version of the configmap
 			return nil, nil
 		}
