@@ -3,11 +3,12 @@ package controllercmd
 import (
 	"context"
 	"fmt"
-	"k8s.io/utils/clock"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
+
+	"k8s.io/utils/clock"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apiserver/pkg/server/healthz"
@@ -336,6 +337,7 @@ func (c *ControllerCommandConfig) StartController(ctx context.Context) error {
 		WithComponentOwnerReference(c.ComponentOwnerReference)
 
 	if !c.DisableServing {
+		klog.Infof("CERT: REPLACEME: config.ServingInfo: %#v", config.ServingInfo)
 		builder = builder.WithServer(config.ServingInfo, config.Authentication, config.Authorization)
 		if c.EnableHTTP2 {
 			builder = builder.WithHTTP2()

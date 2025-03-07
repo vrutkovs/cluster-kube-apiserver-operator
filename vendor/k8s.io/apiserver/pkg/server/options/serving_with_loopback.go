@@ -25,6 +25,7 @@ import (
 	"k8s.io/apiserver/pkg/server/dynamiccertificates"
 	"k8s.io/client-go/rest"
 	certutil "k8s.io/client-go/util/cert"
+	"k8s.io/klog/v2"
 )
 
 type SecureServingOptionsWithLoopback struct {
@@ -37,6 +38,11 @@ func (o *SecureServingOptions) WithLoopback() *SecureServingOptionsWithLoopback 
 
 // ApplyTo fills up serving information in the server configuration.
 func (s *SecureServingOptionsWithLoopback) ApplyTo(secureServingInfo **server.SecureServingInfo, loopbackClientConfig **rest.Config) error {
+	klog.Infof("CERT: REPLACEME: calling SecureServingOptionsWithLoopback.ApplyTo")
+	if loopbackClientConfig != nil {
+		foobar := *loopbackClientConfig
+		klog.Infof("CERT: ApplyTo: loopbackClientConfig: %#v", foobar)
+	}
 	if s == nil || s.SecureServingOptions == nil || secureServingInfo == nil {
 		return nil
 	}
@@ -64,6 +70,7 @@ func (s *SecureServingOptionsWithLoopback) ApplyTo(secureServingInfo **server.Se
 	(*secureServingInfo).SNICerts = append([]dynamiccertificates.SNICertKeyContentProvider{certProvider}, (*secureServingInfo).SNICerts...)
 
 	secureLoopbackClientConfig, err := (*secureServingInfo).NewLoopbackClientConfig(uuid.New().String(), certPem)
+	klog.Infof("CERT: ApplyTo: secureLoopbackClientConfig: %#v", *secureLoopbackClientConfig)
 	switch {
 	// if we failed and there's no fallback loopback client config, we need to fail
 	case err != nil && *loopbackClientConfig == nil:

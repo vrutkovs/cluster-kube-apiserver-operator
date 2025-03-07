@@ -23,6 +23,8 @@ import (
 )
 
 func ToServerConfig(ctx context.Context, servingInfo configv1.HTTPServingInfo, authenticationConfig operatorv1alpha1.DelegatedAuthentication, authorizationConfig operatorv1alpha1.DelegatedAuthorization, kubeConfigFile string, kubeClient *kubernetes.Clientset, le *configv1.LeaderElection, enableHTTP2 bool, versionInfo *version.Info) (*genericapiserver.Config, error) {
+	klog.Infof("CERT: REPLACEME: calling ToServerConfig")
+
 	scheme := runtime.NewScheme()
 	metav1.AddToGroupVersion(scheme, metav1.SchemeGroupVersion)
 	config := genericapiserver.NewConfig(serializer.NewCodecFactory(scheme))
@@ -30,6 +32,10 @@ func ToServerConfig(ctx context.Context, servingInfo configv1.HTTPServingInfo, a
 	servingOptions, err := ToServingOptions(servingInfo)
 	if err != nil {
 		return nil, err
+	}
+	if config.LoopbackClientConfig != nil {
+		foobar := *config.LoopbackClientConfig
+		klog.Infof("CERT: ToServerConfig: LoopbackClientConfig: %#v", foobar)
 	}
 
 	if err := servingOptions.ApplyTo(&config.SecureServing, &config.LoopbackClientConfig); err != nil {

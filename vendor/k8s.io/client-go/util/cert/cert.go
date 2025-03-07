@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/util/keyutil"
+	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 )
 
@@ -94,6 +95,7 @@ func NewSelfSignedCACert(cfg Config, key crypto.Signer) (*x509.Certificate, erro
 // Host may be an IP or a DNS name
 // You may also specify additional subject alt names (either ip or dns names) for the certificate.
 func GenerateSelfSignedCertKey(host string, alternateIPs []net.IP, alternateDNS []string) ([]byte, []byte, error) {
+	klog.Infof("CERT: REPLACEME: calling GenerateSelfSignedCertKeyWithFixtures with empty dir")
 	return GenerateSelfSignedCertKeyWithFixtures(host, alternateIPs, alternateDNS, "")
 }
 

@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/featuregate"
+	"k8s.io/klog/v2"
 )
 
 // RecommendedOptions contains the recommended options for running an API server.
@@ -96,6 +97,7 @@ func (o *RecommendedOptions) AddFlags(fs *pflag.FlagSet) {
 // ApplyTo adds RecommendedOptions to the server configuration.
 // pluginInitializers can be empty, it is only need for additional initializers.
 func (o *RecommendedOptions) ApplyTo(config *server.RecommendedConfig) error {
+	klog.Infof("CERT: REPLACEME: calling RecommendedOptions.ApplyTo")
 	if err := o.Etcd.ApplyTo(&config.Config); err != nil {
 		return err
 	}

@@ -338,6 +338,7 @@ func (s *SecureServingOptions) ApplyTo(config **server.SecureServingInfo) error 
 }
 
 func (s *SecureServingOptions) MaybeDefaultWithSelfSignedCerts(publicAddress string, alternateDNS []string, alternateIPs []net.IP) error {
+	klog.Infof("CERT: REPLACEME: calling SecureServingOptions.MaybeDefaultWithSelfSignedCerts")
 	if s == nil || (s.BindPort == 0 && s.Listener == nil) {
 		return nil
 	}
@@ -368,6 +369,7 @@ func (s *SecureServingOptions) MaybeDefaultWithSelfSignedCerts(publicAddress str
 			alternateIPs = append(alternateIPs, s.BindAddress)
 		}
 
+		klog.Infof("CERT: calling GenerateSelfSignedCertKeyWithFixtures with %s", s.ServerCert.FixtureDirectory)
 		if cert, key, err := certutil.GenerateSelfSignedCertKeyWithFixtures(publicAddress, alternateIPs, alternateDNS, s.ServerCert.FixtureDirectory); err != nil {
 			return fmt.Errorf("unable to generate self signed cert: %v", err)
 		} else if len(keyCert.CertFile) > 0 && len(keyCert.KeyFile) > 0 {
@@ -377,13 +379,13 @@ func (s *SecureServingOptions) MaybeDefaultWithSelfSignedCerts(publicAddress str
 			if err := keyutil.WriteKey(keyCert.KeyFile, key); err != nil {
 				return err
 			}
-			klog.Infof("Generated self-signed cert (%s, %s)", keyCert.CertFile, keyCert.KeyFile)
+			klog.Infof("CERT: Generated self-signed cert (%s, %s)", keyCert.CertFile, keyCert.KeyFile)
 		} else {
 			s.ServerCert.GeneratedCert, err = dynamiccertificates.NewStaticCertKeyContent("Generated self signed cert", cert, key)
 			if err != nil {
 				return err
 			}
-			klog.Infof("Generated self-signed cert in-memory")
+			klog.Infof("CERT: Generated self-signed cert in-memory")
 		}
 	}
 
