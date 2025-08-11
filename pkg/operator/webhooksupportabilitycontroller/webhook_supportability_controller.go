@@ -13,6 +13,10 @@ import (
 	apiextensionslistersv1 "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	admissionregistrationlistersv1 "k8s.io/client-go/listers/admissionregistration/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type webhookSupportabilityController struct {
@@ -41,7 +45,7 @@ func NewWebhookSupportabilityController(
 		crdLister:               apiExtensionsInformers.Apiextensions().V1().CustomResourceDefinitions().Lister(),
 	}
 	c.Controller = factory.New().
-		WithInformers(
+		WithInformersQueueKeyFunc(v1helpers.ObjToString,
 			kubeInformersForAllNamespaces.Admissionregistration().V1().MutatingWebhookConfigurations().Informer(),
 			kubeInformersForAllNamespaces.Admissionregistration().V1().ValidatingWebhookConfigurations().Informer(),
 			kubeInformersForAllNamespaces.Core().V1().Services().Informer(),
@@ -57,12 +61,19 @@ func NewWebhookSupportabilityController(
 	return c
 }
 
-func (c *webhookSupportabilityController) sync(ctx context.Context, _ factory.SyncContext) error {
-	operatorSpec, _, _, err := c.operatorClient.GetOperatorState()
+func (c *webhookSupportabilityController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.webhookSupportabilityController", trace.WithAttributes(
+		attribute.String("name", c.Name()),
+		attribute.String("aaaQueueKey", syncCtx.QueueKey()),
+	))
+	defer span.End()
+
+	operatorSpec, _, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return err
 	}
-	if !management.IsOperatorManaged(operatorSpec.ManagementState) {
+	if !management.IsOperatorManaged(ctx, operatorSpec.ManagementState) {
 		return nil
 	}
 

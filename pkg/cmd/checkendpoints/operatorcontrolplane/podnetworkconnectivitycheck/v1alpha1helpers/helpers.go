@@ -37,7 +37,7 @@ func SetPodNetworkConnectivityCheckCondition(conditions *[]operatorcontrolplanev
 type UpdateStatusFunc func(status *operatorcontrolplanev1alpha1.PodNetworkConnectivityCheckStatus)
 
 type PodNetworkConnectivityCheckClient interface {
-	Get(name string) (*operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck, error)
+	Get(ctx context.Context, name string) (*operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck, error)
 	UpdateStatus(ctx context.Context, podNetworkConnectivityCheck *operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck, opts metav1.UpdateOptions) (*operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck, error)
 }
 
@@ -45,7 +45,7 @@ func UpdateStatus(ctx context.Context, client PodNetworkConnectivityCheckClient,
 	updated := false
 	var updatedStatus *operatorcontrolplanev1alpha1.PodNetworkConnectivityCheckStatus
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		check, err := client.Get(name)
+		check, err := client.Get(ctx, name)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func UpdateStatus(ctx context.Context, client PodNetworkConnectivityCheckClient,
 			updatedStatus = newStatus
 			return nil
 		}
-		check, err = client.Get(name)
+		check, err = client.Get(ctx, name)
 		if err != nil {
 			return err
 		}

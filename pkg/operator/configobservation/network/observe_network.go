@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,7 +16,7 @@ import (
 
 // ObserveRestrictedCIDRs watches the network configuration and updates the
 // RestrictedEndpointsAdmission controller config.
-func ObserveRestrictedCIDRs(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveRestrictedCIDRs(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 
 	var errs []error
@@ -33,12 +34,12 @@ func ObserveRestrictedCIDRs(genericListers configobserver.Listers, recorder even
 	admissionControllerConfig.SetAPIVersion("network.openshift.io/v1")
 	admissionControllerConfig.SetKind("RestrictedEndpointsAdmissionConfig")
 
-	clusterCIDRs, err := network.GetClusterCIDRs(listers.NetworkLister, recorder)
+	clusterCIDRs, err := network.GetClusterCIDRs(ctx, listers.NetworkLister, recorder)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	serviceCIDRs, err := network.GetServiceCIDRs(listers.NetworkLister, recorder)
+	serviceCIDRs, err := network.GetServiceCIDRs(ctx, listers.NetworkLister, recorder)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -76,7 +77,7 @@ func ObserveRestrictedCIDRs(genericListers configobserver.Listers, recorder even
 
 // ObserveServicesSubnet watches the network configuration and generates the
 // servicesSubnet (and bindAddress)
-func ObserveServicesSubnet(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveServicesSubnet(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 
 	out := map[string]interface{}{}
@@ -86,7 +87,7 @@ func ObserveServicesSubnet(genericListers configobserver.Listers, recorder event
 
 	previouslyObservedConfig, errs := extractPreviouslyObservedConfig(existingConfig, servicesSubnetConfigPath, bindAddressConfigPath, bindNetworkConfigPath)
 
-	serviceCIDRs, err := network.GetServiceCIDRs(listers.NetworkLister, recorder)
+	serviceCIDRs, err := network.GetServiceCIDRs(ctx, listers.NetworkLister, recorder)
 	if err != nil {
 		errs = append(errs, err)
 		return previouslyObservedConfig, errs
@@ -114,7 +115,7 @@ func ObserveServicesSubnet(genericListers configobserver.Listers, recorder event
 
 // ObserveExternalIPPolicy observes the network configuration and generates the
 // ExternalIPRanger admission controller accordingly.
-func ObserveExternalIPPolicy(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveExternalIPPolicy(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 
 	// set observed values
@@ -134,13 +135,13 @@ func ObserveExternalIPPolicy(genericListers configobserver.Listers, recorder eve
 
 	previouslyObservedConfig, errs := extractPreviouslyObservedConfig(existingConfig, configPath)
 
-	externalIPPolicy, err := network.GetExternalIPPolicy(listers.NetworkLister, recorder)
+	externalIPPolicy, err := network.GetExternalIPPolicy(ctx, listers.NetworkLister, recorder)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
 	// called "ingress ips" in the controller
-	autoExternalIPs, err := network.GetExternalIPAutoAssignCIDRs(listers.NetworkLister, recorder)
+	autoExternalIPs, err := network.GetExternalIPAutoAssignCIDRs(ctx, listers.NetworkLister, recorder)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -187,7 +188,7 @@ func ObserveExternalIPPolicy(genericListers configobserver.Listers, recorder eve
 
 // ObserveServiceNodePortRange watches the network configuration and generates the
 // serviceNodePortRange
-func ObserveServicesNodePortRange(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveServicesNodePortRange(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 
 	out := map[string]interface{}{}
@@ -195,7 +196,7 @@ func ObserveServicesNodePortRange(genericListers configobserver.Listers, recorde
 
 	previouslyObservedConfig, errs := extractPreviouslyObservedConfig(existingConfig, servicesNodePortRangeConfigPath)
 
-	serviceNodePortRange, err := network.GetServiceNodePortRange(listers.NetworkLister, recorder)
+	serviceNodePortRange, err := network.GetServiceNodePortRange(ctx, listers.NetworkLister, recorder)
 	if err != nil {
 		errs = append(errs, err)
 		return previouslyObservedConfig, errs

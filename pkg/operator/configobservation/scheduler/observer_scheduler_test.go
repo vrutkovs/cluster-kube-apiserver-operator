@@ -1,9 +1,10 @@
 package scheduler
 
 import (
+	"testing"
+
 	configv1 "github.com/openshift/api/config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
@@ -28,7 +29,7 @@ func TestObserveSchedulerConfig(t *testing.T) {
 	listers := configobservation.Listers{
 		SchedulerLister: configlistersv1.NewSchedulerLister(indexer),
 	}
-	result, errors := ObserveDefaultNodeSelector(listers, events.NewInMemoryRecorder("scheduler", clock.RealClock{}), map[string]interface{}{})
+	result, errors := ObserveDefaultNodeSelector(t.Context(), listers, events.NewInMemoryRecorder("scheduler", clock.RealClock{}), map[string]interface{}{})
 	if len(errors) > 0 {
 		t.Fatalf("expected len(errors) == 0")
 	}

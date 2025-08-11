@@ -7,6 +7,7 @@ import (
 
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
 	apiextensionsinformersv1 "k8s.io/apiextensions-apiserver/pkg/client/informers/externalversions/apiextensions/v1"
 	apiextensionslistersv1 "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -21,16 +22,16 @@ type timeToStartController struct {
 	ready     chan error
 }
 
-func newTimeToStartController(crdInformer apiextensionsinformersv1.CustomResourceDefinitionInformer, recorder events.Recorder) *timeToStartController {
+func newTimeToStartController(ctx context.Context, crdInformer apiextensionsinformersv1.CustomResourceDefinitionInformer, recorder events.Recorder) *timeToStartController {
 	c := &timeToStartController{
 		crdLister: crdInformer.Lister(),
 		ready:     make(chan error, 1),
 	}
 	var once sync.Once
 	c.Controller = factory.New().
-		WithInformers(crdInformer.Informer()).
+		WithInformersQueueKeyFunc(v1helpers.ObjToString, crdInformer.Informer()).
 		WithSync(func(context.Context, factory.SyncContext) error {
-			ok, err := podNetworkConnectivityCheckTypeExists(c.crdLister)
+			ok, err := podNetworkConnectivityCheckTypeExists(ctx, c.crdLister)
 			if err != nil {
 				c.ready <- err
 				return err
@@ -55,14 +56,14 @@ type stopController struct {
 	crdLister apiextensionslistersv1.CustomResourceDefinitionLister
 }
 
-func newStopController(crdInformer apiextensionsinformersv1.CustomResourceDefinitionInformer, recorder events.Recorder) *stopController {
+func newStopController(ctx context.Context, crdInformer apiextensionsinformersv1.CustomResourceDefinitionInformer, recorder events.Recorder) *stopController {
 	c := &stopController{
 		crdLister: crdInformer.Lister(),
 	}
 	c.Controller = factory.New().
-		WithInformers(crdInformer.Informer()).
+		WithInformersQueueKeyFunc(v1helpers.ObjToString, crdInformer.Informer()).
 		WithSync(func(context.Context, factory.SyncContext) error {
-			ok, err := podNetworkConnectivityCheckTypeExists(c.crdLister)
+			ok, err := podNetworkConnectivityCheckTypeExists(ctx, c.crdLister)
 			if err != nil {
 				return err
 			}
@@ -76,8 +77,8 @@ func newStopController(crdInformer apiextensionsinformersv1.CustomResourceDefini
 	return c
 }
 
-func podNetworkConnectivityCheckTypeExists(lister apiextensionslistersv1.CustomResourceDefinitionLister) (bool, error) {
-	_, err := lister.Get("podnetworkconnectivitychecks.controlplane.operator.openshift.io")
+func podNetworkConnectivityCheckTypeExists(ctx context.Context, lister apiextensionslistersv1.CustomResourceDefinitionLister) (bool, error) {
+	_, err := lister.Get(ctx, "podnetworkconnectivitychecks.controlplane.operator.openshift.io")
 	if errors.IsNotFound(err) {
 		return false, nil
 	}

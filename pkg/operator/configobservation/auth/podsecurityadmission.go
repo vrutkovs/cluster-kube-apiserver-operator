@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/openshift/api/features"
@@ -75,7 +76,7 @@ type psaEnforcement struct {
 }
 
 // ObserveFeatureFlags fills in --feature-flags for the kube-apiserver
-func (o *psaEnforcement) ObservePodSecurityAdmissionEnforcement(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
+func (o *psaEnforcement) ObservePodSecurityAdmissionEnforcement(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
 	return observePodSecurityAdmissionEnforcement(o.featureGateAccessor, recorder, existingConfig)
 }
 

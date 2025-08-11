@@ -27,6 +27,10 @@ import (
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/operatorclient"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -66,7 +70,7 @@ func NewBoundSATokenSignerController(
 		configMapClient: v1helpers.CachedConfigMapGetter(kubeClient.CoreV1(), kubeInformersForNamespaces),
 	}
 
-	return factory.New().WithInformers(
+	return factory.New().WithInformersQueueKeyFunc(v1helpers.ObjToString,
 		kubeInformersForNamespaces.InformersFor(operatorNamespace).Core().V1().Secrets().Informer(),
 		kubeInformersForNamespaces.InformersFor(targetNamespace).Core().V1().Secrets().Informer(),
 		kubeInformersForNamespaces.InformersFor(targetNamespace).Core().V1().ConfigMaps().Informer(),
@@ -75,6 +79,12 @@ func NewBoundSATokenSignerController(
 }
 
 func (c *BoundSATokenSignerController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.BoundSATokenSignerController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncCtx.QueueKey()),
+	))
+	defer span.End()
+
 	syncMethods := []func(ctx context.Context, syncCtx factory.SyncContext) error{
 		c.ensureNextOperatorSigningSecret,
 		c.ensurePublicKeyConfigMap,
@@ -95,9 +105,16 @@ func (c *BoundSATokenSignerController) sync(ctx context.Context, syncCtx factory
 // namespace containing an RSA keypair used for signing and validating bound service
 // account tokens.
 func (c *BoundSATokenSignerController) ensureNextOperatorSigningSecret(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "boundSATokenSignerController.ensureNextOperatorSigningSecret", trace.WithAttributes(
+		attribute.String("namespace", operatorNamespace),
+		attribute.String("name", NextSigningKeySecretName),
+	))
+	defer span.End()
 	// Attempt to retrieve the operator secret
 	secret, err := c.secretClient.Secrets(operatorNamespace).Get(ctx, NextSigningKeySecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
+		span.AddEvent(fmt.Sprintf("error: %v", err))
 		return err
 	}
 
@@ -105,6 +122,7 @@ func (c *BoundSATokenSignerController) ensureNextOperatorSigningSecret(ctx conte
 	needKeypair := secret == nil || len(secret.Data[PrivateKeyKey]) == 0 || len(secret.Data[PublicKeyKey]) == 0
 	if needKeypair {
 		klog.V(2).Infof("Creating a new signing secret for bound service account tokens.")
+		span.AddEvent("Creating a new signing secret for bound service account tokens.")
 		newSecret, err := newNextSigningSecret()
 		if err != nil {
 			return err
@@ -124,17 +142,24 @@ func (c *BoundSATokenSignerController) ensureNextOperatorSigningSecret(ctx conte
 // with the current public key. If the configmap exists but does not contain the
 // current public key, the key will be added.
 func (c *BoundSATokenSignerController) ensurePublicKeyConfigMap(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "boundSATokenSignerController.ensurePublicKeyConfigMap", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncCtx.QueueKey()),
+	))
+	defer span.End()
 	// Retrieve the operator secret that contains the current public key
 	operatorSecret, err := c.secretClient.Secrets(operatorNamespace).Get(ctx, NextSigningKeySecretName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
+	span.AddEvent("Read NextSigningKeySecretName")
 
 	// Retrieve the configmap that needs to contain the current public key
 	cachedConfigMap, err := c.configMapClient.ConfigMaps(targetNamespace).Get(ctx, PublicKeyConfigMapName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+	span.AddEvent("Read PublicKeyConfigMapName")
 
 	var configMap *corev1.ConfigMap
 	if errors.IsNotFound(err) {
@@ -151,6 +176,7 @@ func (c *BoundSATokenSignerController) ensurePublicKeyConfigMap(ctx context.Cont
 	if configMap.Data == nil {
 		configMap.Data = map[string]string{}
 	}
+	span.AddEvent("Read configmap")
 
 	currPublicKey := string(operatorSecret.Data[PublicKeyKey])
 	if currPublicKey == "" {
@@ -174,6 +200,7 @@ func (c *BoundSATokenSignerController) ensurePublicKeyConfigMap(ctx context.Cont
 			}
 			nextKeyIndex += 1
 		}
+		span.AddEvent("Prepared configmap name")
 
 		// Ensure the configmap is updated with the current public key
 		configMap.Data[nextKeyKey] = currPublicKey
@@ -192,17 +219,24 @@ func (c *BoundSATokenSignerController) ensurePublicKeyConfigMap(ctx context.Cont
 // key has been synced to all master nodes to ensure that issued tokens can be
 // verified by all apiservers.
 func (c *BoundSATokenSignerController) ensureOperandSigningSecret(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "boundSATokenSignerController.ensureOperandSigningSecret", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncCtx.QueueKey()),
+	))
+	defer span.End()
 	// Retrieve the operator signing secret
 	operatorSecret, err := c.secretClient.Secrets(operatorNamespace).Get(ctx, NextSigningKeySecretName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
+	span.AddEvent("Read NextSigningKeySecretName")
 
 	// Retrieve the operand signing secret
 	operandSecret, err := c.secretClient.Secrets(targetNamespace).Get(ctx, SigningKeySecretName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
+	span.AddEvent("Read SigningKeySecretName")
 
 	// If operand secret matches the operator secret, all done
 	operandSecretUpToDate := (operandSecret != nil &&
@@ -213,6 +247,7 @@ func (c *BoundSATokenSignerController) ensureOperandSigningSecret(ctx context.Co
 	}
 
 	currPublicKey := string(operatorSecret.Data[PublicKeyKey])
+	span.AddEvent("currPublicKey")
 
 	// The current public key must be present in the configmap before ensuring that
 	// the operand secret matches the operator secret to avoid apiservers that can
@@ -224,6 +259,7 @@ func (c *BoundSATokenSignerController) ensureOperandSigningSecret(ctx context.Co
 	if !configMapHasValue(configMap, currPublicKey) {
 		return fmt.Errorf("unable to promote bound sa token signing key until public key configmap has been updated")
 	}
+	span.AddEvent("Read PublicKeyConfigMapName")
 
 	syncAllowed := false
 
@@ -245,6 +281,7 @@ func (c *BoundSATokenSignerController) ensureOperandSigningSecret(ctx context.Co
 			klog.V(2).Info("Promotion of the secret containing the keypair used to sign bound service account tokens is pending distribution of its public key to master nodes.")
 		}
 	}
+	span.AddEvent("syncAllowed")
 	if !syncAllowed {
 		return nil
 	}
@@ -258,7 +295,10 @@ func (c *BoundSATokenSignerController) ensureOperandSigningSecret(ctx context.Co
 // current revisions of the apiserver nodes by checking for the key with the
 // configmaps associated with those revisions.
 func (c *BoundSATokenSignerController) publicKeySyncedToAllNodes(ctx context.Context, publicKey string) (bool, error) {
-	_, operatorStatus, _, err := c.operatorClient.GetStaticPodOperatorState()
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "boundSATokenSignerController.publicKeySyncedToAllNodes", trace.WithAttributes())
+	defer span.End()
+	_, operatorStatus, _, err := c.operatorClient.GetStaticPodOperatorState(ctx)
 	if err != nil {
 		return false, err
 	}

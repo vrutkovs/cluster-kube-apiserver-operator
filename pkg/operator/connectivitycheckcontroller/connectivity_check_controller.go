@@ -25,6 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type KubeAPIServerConnectivityCheckController interface {
@@ -84,30 +88,35 @@ type connectivityCheckTemplateProvider struct {
 }
 
 func (c *connectivityCheckTemplateProvider) generate(ctx context.Context, syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.KubeAPIServerConnectivityCheckController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncContext.QueueKey()),
+	))
+	defer span.End()
 	var templates []*v1alpha1.PodNetworkConnectivityCheck
 	// each storage endpoint
-	etcdEndpoints, err := c.getTemplatesForEtcdEndpoints(syncContext)
+	etcdEndpoints, err := c.getTemplatesForEtcdEndpoints(ctx, syncContext)
 	if err != nil {
 		syncContext.Recorder().Warningf("EndpointDetectionFailure", "error detecting etcd server endpoints: %v", err)
 	}
 	templates = append(templates, etcdEndpoints...)
 
 	// oas service IP
-	oasServiceIP, err := c.getTemplatesForOpenShiftAPIServerService(syncContext)
+	oasServiceIP, err := c.getTemplatesForOpenShiftAPIServerService(ctx, syncContext)
 	if err != nil {
 		syncContext.Recorder().Warningf("EndpointDetectionFailure", "error detecting openshift-apiserver service: %v", err)
 	}
 	templates = append(templates, oasServiceIP...)
 
 	// each oas endpoint
-	oasEndpointIPs, err := c.getTemplatesForOpenShiftAPIServerEndpoints(syncContext)
+	oasEndpointIPs, err := c.getTemplatesForOpenShiftAPIServerEndpoints(ctx, syncContext)
 	if err != nil {
 		syncContext.Recorder().Warningf("EndpointDetectionFailure", "error detecting openshift-apiserver service endpoints: %v", err)
 	}
 	templates = append(templates, oasEndpointIPs...)
 
 	// api load balancer endpoints
-	loadBalancerEndpoints, err := c.getTemplatesForApiLoadBalancerEndpoints(syncContext)
+	loadBalancerEndpoints, err := c.getTemplatesForApiLoadBalancerEndpoints(ctx, syncContext)
 	if err != nil {
 		syncContext.Recorder().Warningf("EndpointDetectionFailure", "error detecting api load balancer endpoints: %v", err)
 	}
@@ -135,9 +144,9 @@ func (c *connectivityCheckTemplateProvider) generate(ctx context.Context, syncCo
 	return checks, nil
 }
 
-func (c *connectivityCheckTemplateProvider) getTemplatesForOpenShiftAPIServerService(syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
+func (c *connectivityCheckTemplateProvider) getTemplatesForOpenShiftAPIServerService(ctx context.Context, syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
 	var templates []*v1alpha1.PodNetworkConnectivityCheck
-	ips, err := c.listAddressesForOpenShiftAPIServerService(syncContext)
+	ips, err := c.listAddressesForOpenShiftAPIServerService(ctx, syncContext)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +159,8 @@ func (c *connectivityCheckTemplateProvider) getTemplatesForOpenShiftAPIServerSer
 	return templates, nil
 }
 
-func (c *connectivityCheckTemplateProvider) listAddressesForOpenShiftAPIServerService(syncContext factory.SyncContext) ([]string, error) {
-	service, err := c.serviceLister.Services("openshift-apiserver").Get("api")
+func (c *connectivityCheckTemplateProvider) listAddressesForOpenShiftAPIServerService(ctx context.Context, syncContext factory.SyncContext) ([]string, error) {
+	service, err := c.serviceLister.Services("openshift-apiserver").Get(ctx, "api")
 	if err != nil {
 		return nil, err
 	}
@@ -163,9 +172,9 @@ func (c *connectivityCheckTemplateProvider) listAddressesForOpenShiftAPIServerSe
 	return []string{net.JoinHostPort(service.Spec.ClusterIP, "443")}, nil
 }
 
-func (c *connectivityCheckTemplateProvider) getTemplatesForOpenShiftAPIServerEndpoints(syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
+func (c *connectivityCheckTemplateProvider) getTemplatesForOpenShiftAPIServerEndpoints(ctx context.Context, syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
 	var templates []*v1alpha1.PodNetworkConnectivityCheck
-	addresses, err := c.listAddressesForOpenShiftAPIServerServiceEndpoints(syncContext)
+	addresses, err := c.listAddressesForOpenShiftAPIServerServiceEndpoints(ctx, syncContext)
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +186,8 @@ func (c *connectivityCheckTemplateProvider) getTemplatesForOpenShiftAPIServerEnd
 }
 
 // listAddressesForOpenShiftAPIServerServiceEndpoints returns oas api service endpoints ip
-func (c *connectivityCheckTemplateProvider) listAddressesForOpenShiftAPIServerServiceEndpoints(syncContext factory.SyncContext) ([]endpointInfo, error) {
-	endpoints, err := c.endpointsLister.Endpoints("openshift-apiserver").Get("api")
+func (c *connectivityCheckTemplateProvider) listAddressesForOpenShiftAPIServerServiceEndpoints(ctx context.Context, syncContext factory.SyncContext) ([]endpointInfo, error) {
+	endpoints, err := c.endpointsLister.Endpoints("openshift-apiserver").Get(ctx, "api")
 	if err != nil {
 		return nil, err
 	}
@@ -197,9 +206,9 @@ func (c *connectivityCheckTemplateProvider) listAddressesForOpenShiftAPIServerSe
 	return results, nil
 }
 
-func (c *connectivityCheckTemplateProvider) getTemplatesForEtcdEndpoints(syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
+func (c *connectivityCheckTemplateProvider) getTemplatesForEtcdEndpoints(ctx context.Context, syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
 	var templates []*v1alpha1.PodNetworkConnectivityCheck
-	endpointInfos, err := c.listAddressesForEtcdServerEndpoints(syncContext)
+	endpointInfos, err := c.listAddressesForEtcdServerEndpoints(ctx, syncContext)
 	if err != nil {
 		syncContext.Recorder().Warningf("EndpointDetectionFailure", "error detecting etcd server endpoints: %v", err)
 		return nil, err
@@ -215,8 +224,8 @@ func (c *connectivityCheckTemplateProvider) getTemplatesForEtcdEndpoints(syncCon
 	return templates, nil
 }
 
-func (c *connectivityCheckTemplateProvider) listAddressesForEtcdServerEndpoints(syncContext factory.SyncContext) ([]endpointInfo, error) {
-	operatorSpec, _, _, err := c.operatorClient.GetOperatorState()
+func (c *connectivityCheckTemplateProvider) listAddressesForEtcdServerEndpoints(ctx context.Context, syncContext factory.SyncContext) ([]endpointInfo, error) {
+	operatorSpec, _, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the operatorSpec: %w", err)
 	}
@@ -236,7 +245,7 @@ func (c *connectivityCheckTemplateProvider) listAddressesForEtcdServerEndpoints(
 			syncContext.Recorder().Warningf("EndpointDetectionFailure", "couldn't parse an etcd server url from observedConfig: %v", err)
 			continue
 		}
-		node, err := c.findNodeForInternalIP(storageConfigURL.Hostname())
+		node, err := c.findNodeForInternalIP(ctx, storageConfigURL.Hostname())
 		if err != nil {
 			syncContext.Recorder().Warningf("EndpointDetectionFailure", "unable to determine node for etcd server: %v", err)
 			continue
@@ -250,9 +259,9 @@ func (c *connectivityCheckTemplateProvider) listAddressesForEtcdServerEndpoints(
 	return results, nil
 }
 
-func (c *connectivityCheckTemplateProvider) getTemplatesForApiLoadBalancerEndpoints(syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
+func (c *connectivityCheckTemplateProvider) getTemplatesForApiLoadBalancerEndpoints(ctx context.Context, syncContext factory.SyncContext) ([]*v1alpha1.PodNetworkConnectivityCheck, error) {
 	var templates []*v1alpha1.PodNetworkConnectivityCheck
-	infrastructure, err := c.infrastructureLister.Get("cluster")
+	infrastructure, err := c.infrastructureLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, err
 	}
@@ -269,12 +278,12 @@ func (c *connectivityCheckTemplateProvider) getTemplatesForApiLoadBalancerEndpoi
 	return templates, err
 }
 
-func (c *connectivityCheckTemplateProvider) findNodeForInternalIP(internalIP string) (*corev1.Node, error) {
+func (c *connectivityCheckTemplateProvider) findNodeForInternalIP(ctx context.Context, internalIP string) (*corev1.Node, error) {
 	switch internalIP {
 	case "localhost", "127.0.0.1", "::1":
 		return &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "localhost"}}, nil
 	}
-	nodes, err := c.nodeLister.List(labels.Everything())
+	nodes, err := c.nodeLister.List(ctx, labels.Everything())
 	if err != nil {
 		return nil, err
 	}

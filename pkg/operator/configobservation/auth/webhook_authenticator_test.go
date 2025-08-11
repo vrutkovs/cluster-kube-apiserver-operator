@@ -174,7 +174,7 @@ func TestObserveWebhookTokenAuthenticator(t *testing.T) {
 
 			eventRecorder := events.NewInMemoryRecorder("webhookauthenticatortest", clock.RealClock{})
 
-			gotConfig, errs := ObserveWebhookTokenAuthenticator(listers, eventRecorder, tt.existingConfig)
+			gotConfig, errs := ObserveWebhookTokenAuthenticator(t.Context(), listers, eventRecorder, tt.existingConfig)
 			if !equality.Semantic.DeepEqual(tt.expectedConfig, gotConfig) {
 				t.Errorf("unexpected config diff: %s", diff.ObjectReflectDiff(tt.expectedConfig, gotConfig))
 			}

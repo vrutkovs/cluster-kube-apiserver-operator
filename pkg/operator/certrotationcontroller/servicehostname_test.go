@@ -1,6 +1,7 @@
 package certrotationcontroller
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestServiceHostNameFunc(t *testing.T) {
 				networkLister:  configv1listers.NewNetworkLister(indexer),
 				serviceNetwork: &DynamicServingRotation{hostnamesChanged: make(chan struct{}, 10)},
 			}
-			err := controller.syncServiceHostnames()
+			err := controller.syncServiceHostnames(context.Background())
 			require.Equal(t, err, scenario.expectedError)
 		})
 	}

@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -17,7 +18,7 @@ import (
 var sendRetryAfterWhileNotReadyOncePath = []string{"apiServerArguments", "send-retry-after-while-not-ready-once"}
 
 // ObserveSendRetryAfterWhileNotReadyOnce ensures that send-retry-after-while-not-ready-once is set for SNO clusters.
-func ObserveSendRetryAfterWhileNotReadyOnce(genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveSendRetryAfterWhileNotReadyOnce(ctx context.Context, genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	defer func() {
 		// Prune the observed config so that it only contains apiServerArguments field.
 		ret = configobserver.Pruned(ret, sendRetryAfterWhileNotReadyOncePath)
@@ -25,7 +26,7 @@ func ObserveSendRetryAfterWhileNotReadyOnce(genericListers configobserver.Lister
 
 	// read the observed value
 	listers := genericListers.(configobservation.Listers)
-	infra, err := listers.InfrastructureLister().Get("cluster")
+	infra, err := listers.InfrastructureLister().Get(ctx, "cluster")
 	if err != nil && !apierrors.IsNotFound(err) {
 		// we got an error so without the infrastructure object we are not able to determine the type of platform we are running on
 		return existingConfig, append(errs, err)

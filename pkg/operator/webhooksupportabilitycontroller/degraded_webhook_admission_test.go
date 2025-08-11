@@ -227,7 +227,7 @@ func TestUpdateMutatingAdmissionWebhookConfigurationDegraded(t *testing.T) {
 			// start the mock webhook servers
 			for _, server := range tc.webhookServers {
 				// get the corresponding config, so we can update the port and CABundle
-				cfg, err := c.mutatingWebhookLister.Get(server.Config)
+				cfg, err := c.mutatingWebhookLister.Get(ctx, server.Config)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -454,7 +454,7 @@ func TestUpdateValidatingAdmissionWebhookConfigurationDegradedStatus(t *testing.
 			// start the mock webhook servers
 			for _, server := range tc.webhookServers {
 				// get the corresponding config, so we can update the port and CABundle
-				cfg, err := c.validatingWebhookLister.Get(server.Config)
+				cfg, err := c.validatingWebhookLister.Get(ctx, server.Config)
 				if err != nil {
 					t.Fatal(err)
 				}

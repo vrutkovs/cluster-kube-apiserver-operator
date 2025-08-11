@@ -2,6 +2,7 @@ package startupmonitorreadiness
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -13,9 +14,9 @@ import (
 )
 
 // IsStartupMonitorEnabledFunction returns a function that determines if the startup monitor should be enabled on a cluster
-func IsStartupMonitorEnabledFunction(infrastructureLister configlistersv1.InfrastructureLister, operatorClient v1helpers.StaticPodOperatorClient) func() (bool, error) {
+func IsStartupMonitorEnabledFunction(ctx context.Context, infrastructureLister configlistersv1.InfrastructureLister, operatorClient v1helpers.StaticPodOperatorClient) func() (bool, error) {
 	return func() (bool, error) {
-		infra, err := infrastructureLister.Get("cluster")
+		infra, err := infrastructureLister.Get(ctx, "cluster")
 		// we won't be without an infra for very long.  This means we're starting up very early in the process, so
 		// being able to detect that a rollback of a revision is needed isn't necessary since the stakes are low because
 		// there is no customer data in the cluster yet.
@@ -33,7 +34,7 @@ func IsStartupMonitorEnabledFunction(infrastructureLister configlistersv1.Infras
 		}
 
 		// for development and debugging
-		operatorSpec, _, _, err := operatorClient.GetOperatorState()
+		operatorSpec, _, _, err := operatorClient.GetOperatorState(ctx)
 		if err != nil {
 			return false, err
 		}

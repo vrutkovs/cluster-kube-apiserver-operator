@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +33,7 @@ var (
 // set it uses the contents of this secret as a webhhook token authenticator
 // for the API server. It also takes care of synchronizing this secret to the
 // openshift-kube-apiserver NS.
-func ObserveWebhookTokenAuthenticator(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
+func ObserveWebhookTokenAuthenticator(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
 	defer func() {
 		ret = configobserver.Pruned(ret, webhookTokenAuthenticatorPath, webhookTokenAuthenticatorVersionPath)
 	}()
@@ -50,7 +51,7 @@ func ObserveWebhookTokenAuthenticator(genericListers configobserver.Listers, rec
 
 	observedConfig := map[string]interface{}{}
 
-	auth, err := listers.AuthConfigLister.Get("cluster")
+	auth, err := listers.AuthConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		recorder.Eventf("ObserveWebhookTokenAuthenticator", "authentications.config.openshift.io/cluster: not found")
 		return observedConfig, nil
@@ -66,7 +67,7 @@ func ObserveWebhookTokenAuthenticator(genericListers configobserver.Listers, rec
 	observedWebhookConfigured := len(webhookSecretName) > 0
 	if observedWebhookConfigured && auth.Spec.Type != configv1.AuthenticationTypeOIDC {
 		// retrieve the secret from config and validate it, don't proceed on failure
-		kubeconfigSecret, err := listers.ConfigSecretLister().Secrets("openshift-config").Get(webhookSecretName)
+		kubeconfigSecret, err := listers.ConfigSecretLister().Secrets("openshift-config").Get(ctx, webhookSecretName)
 		if err != nil {
 			return existingConfig, append(errs, fmt.Errorf("failed to get secret openshift-config/%s: %w", webhookSecretName, err))
 		}
@@ -90,7 +91,7 @@ func ObserveWebhookTokenAuthenticator(genericListers configobserver.Listers, rec
 		)
 	} else {
 		if auth.Spec.Type == configv1.AuthenticationTypeOIDC {
-			if _, err := listers.ConfigmapLister_.ConfigMaps(operatorclient.TargetNamespace).Get(AuthConfigCMName); errors.IsNotFound(err) {
+			if _, err := listers.ConfigmapLister_.ConfigMaps(operatorclient.TargetNamespace).Get(ctx, AuthConfigCMName); errors.IsNotFound(err) {
 				// auth-config does not exist in target namespace yet; do not remove webhook until it's there
 				return existingConfig, errs
 			} else if err != nil {

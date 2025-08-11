@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"context"
+
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/configobservation"
 	"github.com/openshift/library-go/pkg/operator/configobserver"
 	"github.com/openshift/library-go/pkg/operator/events"
@@ -11,7 +13,7 @@ import (
 )
 
 // ObserveDefaultNodeSelector reads the defaultNodeSelector from the scheduler configuration instance cluster
-func ObserveDefaultNodeSelector(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveDefaultNodeSelector(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 	errs := []error{}
 	prevObservedConfig := map[string]interface{}{}
@@ -28,7 +30,7 @@ func ObserveDefaultNodeSelector(genericListers configobserver.Listers, recorder 
 	}
 
 	observedConfig := map[string]interface{}{}
-	schedulerConfig, err := listers.SchedulerLister.Get("cluster")
+	schedulerConfig, err := listers.SchedulerLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warningf("scheduler.config.openshift.io/cluster: not found")
 		return observedConfig, errs

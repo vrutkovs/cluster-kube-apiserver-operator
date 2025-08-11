@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"testing"
@@ -340,7 +341,7 @@ func TestObserveExternalOIDC(t *testing.T) {
 			}
 
 			c := externalOIDC{featureGateAccessor: tt.featureGates}
-			actualConfig, errs := c.ObserveExternalOIDC(listers, eventRecorder, tt.existingConfig)
+			actualConfig, errs := c.ObserveExternalOIDC(t.Context(), listers, eventRecorder, tt.existingConfig)
 
 			if tt.expectErrors != (len(errs) > 0) {
 				t.Errorf("expected errors: %v; got %v", tt.expectErrors, errs)
@@ -417,7 +418,7 @@ func TestValidateSourceConfigMap(t *testing.T) {
 				ConfigmapLister_: corelistersv1.NewConfigMapLister(tt.cmIndexer),
 			}
 
-			cm, err := validateSourceConfigMap(listers)
+			cm, err := validateSourceConfigMap(t.Context(), listers)
 
 			if tt.expectError != (err != nil) {
 				t.Errorf("expected error: %v; got: %v", tt.expectError, err)
@@ -449,8 +450,8 @@ func newFakeConfigMapLister(failingNamespaces sets.Set[string], defaultIndexer c
 	}
 }
 
-func (l *fakeConfigMapLister) List(selector labels.Selector) (ret []*corev1.ConfigMap, err error) {
-	return l.defaultLister.List(selector)
+func (l *fakeConfigMapLister) List(ctx context.Context, selector labels.Selector) (ret []*corev1.ConfigMap, err error) {
+	return l.defaultLister.List(ctx, selector)
 }
 
 func (l *fakeConfigMapLister) ConfigMaps(namespace string) corelistersv1.ConfigMapNamespaceLister {

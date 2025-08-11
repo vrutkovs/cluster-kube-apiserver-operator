@@ -72,7 +72,7 @@ func TestObserveUserClientCABundle(t *testing.T) {
 				APIServerLister_: configlistersv1.NewAPIServerLister(indexer),
 				ResourceSync:     &mockResourceSyncer{t: t, synced: synced},
 			}
-			result, errs := ObserveUserClientCABundle(listers, events.NewInMemoryRecorder(t.Name(), clock.RealClock{}), tc.existing)
+			result, errs := ObserveUserClientCABundle(t.Context(), listers, events.NewInMemoryRecorder(t.Name(), clock.RealClock{}), tc.existing)
 			if len(errs) > 0 {
 				t.Errorf("Expected 0 errors, got %v.", len(errs))
 			}
@@ -502,7 +502,7 @@ func TestObserveNamedCertificates(t *testing.T) {
 				ResourceSync:        &mockResourceSyncer{t: t, synced: synced},
 				ConfigSecretLister_: corelistersv1.NewSecretLister(indexer),
 			}
-			result, errs := ObserveNamedCertificates(listers, events.NewInMemoryRecorder(t.Name(), clock.RealClock{}), tc.existing)
+			result, errs := ObserveNamedCertificates(t.Context(), listers, events.NewInMemoryRecorder(t.Name(), clock.RealClock{}), tc.existing)
 			if tc.expectErrs && len(errs) == 0 {
 				t.Error("Expected errors.", errs)
 			}

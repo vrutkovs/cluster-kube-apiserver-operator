@@ -106,7 +106,7 @@ func TestObserveSendRetryAfterWhileNotReadyOnce(t *testing.T) {
 			}
 
 			// act
-			observedKubeAPIConfig, err := ObserveSendRetryAfterWhileNotReadyOnce(listers, eventRecorder, scenario.existingKubeAPIConfig)
+			observedKubeAPIConfig, err := ObserveSendRetryAfterWhileNotReadyOnce(t.Context(), listers, eventRecorder, scenario.existingKubeAPIConfig)
 
 			// validate
 			if len(err) > 0 {

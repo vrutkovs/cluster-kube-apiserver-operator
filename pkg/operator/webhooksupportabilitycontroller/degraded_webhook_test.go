@@ -53,7 +53,7 @@ func TestAssertService(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := c.assertService(tc.service)
+			err := c.assertService(t.Context(), tc.service)
 			if tc.expectErr && err == nil {
 				t.Fatalf("error expected")
 			}

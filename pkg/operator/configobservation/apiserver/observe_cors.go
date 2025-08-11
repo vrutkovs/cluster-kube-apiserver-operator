@@ -1,6 +1,8 @@
 package apiserver
 
 import (
+	"context"
+
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,7 +19,7 @@ var clusterDefaultCORSALlowedOrigins = []string{
 	`//localhost(:|$)`,
 }
 
-func ObserveAdditionalCORSAllowedOrigins(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveAdditionalCORSAllowedOrigins(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	const corsAllowedOriginsPath = "corsAllowedOrigins"
 
 	listers := genericListers.(configobservation.Listers)
@@ -37,7 +39,7 @@ func ObserveAdditionalCORSAllowedOrigins(genericListers configobserver.Listers, 
 	currentCORSSet.Insert(clusterDefaultCORSALlowedOrigins...)
 
 	observedConfig := map[string]interface{}{}
-	apiServer, err := listers.APIServerLister().Get("cluster")
+	apiServer, err := listers.APIServerLister().Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warningf("apiserver.config.openshift.io/cluster: not found")
 		return defaultConfig, errs

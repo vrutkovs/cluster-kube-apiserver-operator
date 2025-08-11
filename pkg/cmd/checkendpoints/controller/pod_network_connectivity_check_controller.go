@@ -11,6 +11,10 @@ import (
 	"github.com/openshift/client-go/operatorcontrolplane/listers/operatorcontrolplane/v1alpha1"
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	coreinformersv1 "k8s.io/client-go/informers/core/v1"
@@ -58,7 +62,7 @@ func NewPodNetworkConnectivityCheckController(podName, podNamespace string,
 	}
 	c.Controller = factory.New().
 		WithSync(c.Sync).
-		WithInformers(secretInformer.Informer(), checkInformer.Informer()).
+		WithInformersQueueKeyFunc(v1helpers.ObjToString, secretInformer.Informer(), checkInformer.Informer()).
 		ResyncEvery(1*time.Minute).
 		ToController("check-endpoints", recorder)
 	return c
@@ -67,7 +71,13 @@ func NewPodNetworkConnectivityCheckController(podName, podNamespace string,
 // Sync ensures that the status updaters for each PodNetworkConnectivityCheck is started
 // and then performs each check.
 func (c *controller) Sync(ctx context.Context, syncContext factory.SyncContext) error {
-	checkList, err := c.checkLister.List(labels.Everything())
+	tracer := otel.GetTracerProvider().Tracer("library-go")
+	ctx, span := tracer.Start(ctx, "ckao.PodNetworkConnectivityCheckController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncContext.QueueKey()),
+	))
+	defer span.End()
+
+	checkList, err := c.checkLister.List(ctx, labels.Everything())
 	if err != nil {
 		return err
 	}
@@ -83,7 +93,7 @@ func (c *controller) Sync(ctx context.Context, syncContext factory.SyncContext) 
 	// create & start status updaters if needed
 	for _, check := range checks {
 		if updater := c.updaters[check.Name]; updater == nil {
-			c.updaters[check.Name] = NewConnectionChecker(check.Name, c.podName, c.podNamespace, c.newCheckFunc(check.Name), c, c.getClientCerts(check), c.recorder)
+			c.updaters[check.Name] = NewConnectionChecker(check.Name, c.podName, c.podNamespace, c.newCheckFunc(ctx, check.Name), c, c.getClientCerts(ctx, check), c.recorder)
 			go c.updaters[check.Name].Run(ctx)
 		}
 	}
@@ -106,19 +116,19 @@ func (c *controller) Sync(ctx context.Context, syncContext factory.SyncContext) 
 	return nil
 }
 
-func (c *controller) newCheckFunc(name string) GetCheckFunc {
+func (c *controller) newCheckFunc(ctx context.Context, name string) GetCheckFunc {
 	return func() *operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck {
-		check, _ := c.checkLister.Get(name)
+		check, _ := c.checkLister.Get(ctx, name)
 		return check
 	}
 }
 
 // getClientCerts returns the client cert specified in the secret specified in the PodNetworkConnectivityCheck
 // or nil if not specified or there is an error retrieving the certs.
-func (c *controller) getClientCerts(check *operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck) CertificatesGetter {
+func (c *controller) getClientCerts(ctx context.Context, check *operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck) CertificatesGetter {
 	return func() []tls.Certificate {
 		if len(check.Spec.TLSClientCert.Name) > 0 {
-			secret, err := c.secretLister.Secrets(c.podNamespace).Get(check.Spec.TLSClientCert.Name)
+			secret, err := c.secretLister.Secrets(c.podNamespace).Get(ctx, check.Spec.TLSClientCert.Name)
 			if err != nil {
 				klog.V(2).Infof("secret/%s: %v", check.Spec.TLSClientCert.Name, err)
 				return nil
@@ -135,8 +145,8 @@ func (c *controller) getClientCerts(check *operatorcontrolplanev1alpha1.PodNetwo
 }
 
 // Get implements PodNetworkConnectivityCheckClient
-func (c *controller) Get(name string) (*operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck, error) {
-	return c.checkLister.Get(name)
+func (c *controller) Get(ctx context.Context, name string) (*operatorcontrolplanev1alpha1.PodNetworkConnectivityCheck, error) {
+	return c.checkLister.Get(ctx, name)
 }
 
 // UpdateStatus implements v1alpha1helpers.PodNetworkConnectivityCheckClient

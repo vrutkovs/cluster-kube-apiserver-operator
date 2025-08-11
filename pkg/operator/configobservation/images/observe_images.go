@@ -2,6 +2,7 @@ package images
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 
 	"k8s.io/klog/v2"
@@ -18,7 +19,7 @@ import (
 
 // ObserveInternalRegistryHostname reads the internal registry hostname from the cluster configuration as provided by
 // the registry operator.
-func ObserveInternalRegistryHostname(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveInternalRegistryHostname(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 	errs := []error{}
 	prevObservedConfig := map[string]interface{}{}
@@ -35,7 +36,7 @@ func ObserveInternalRegistryHostname(genericListers configobserver.Listers, reco
 	}
 
 	observedConfig := map[string]interface{}{}
-	configImage, err := listers.ImageConfigLister.Get("cluster")
+	configImage, err := listers.ImageConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warningf("image.config.openshift.io/cluster: not found")
 		return observedConfig, errs
@@ -58,7 +59,7 @@ func ObserveInternalRegistryHostname(genericListers configobserver.Listers, reco
 
 // ObserveExternalRegistryHostnames maps the user provided+generated external registry hostnames to the kube api server
 // configuration.
-func ObserveExternalRegistryHostnames(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveExternalRegistryHostnames(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 	var errs []error
 	prevObservedConfig := map[string]interface{}{}
@@ -79,7 +80,7 @@ func ObserveExternalRegistryHostnames(genericListers configobserver.Listers, rec
 
 	// now gather the cluster config and turn it into the observed config
 	observedConfig := map[string]interface{}{}
-	configImage, err := listers.ImageConfigLister.Get("cluster")
+	configImage, err := listers.ImageConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warningf("image.config.openshift.io/cluster: not found")
 		return observedConfig, errs
@@ -108,7 +109,7 @@ func ObserveExternalRegistryHostnames(genericListers configobserver.Listers, rec
 
 // ObserveAllowedRegistriesForImport maps the user provided list of allowed registries for importing images to the kube api server
 // configuration.
-func ObserveAllowedRegistriesForImport(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveAllowedRegistriesForImport(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (map[string]interface{}, []error) {
 	listers := genericListers.(configobservation.Listers)
 	var errs []error
 	prevObservedConfig := map[string]interface{}{}
@@ -129,7 +130,7 @@ func ObserveAllowedRegistriesForImport(genericListers configobserver.Listers, re
 
 	// now gather the cluster config and turn it into the observed config
 	observedConfig := map[string]interface{}{}
-	configImage, err := listers.ImageConfigLister.Get("cluster")
+	configImage, err := listers.ImageConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warningf("image.config.openshift.io/cluster: not found")
 		return observedConfig, errs

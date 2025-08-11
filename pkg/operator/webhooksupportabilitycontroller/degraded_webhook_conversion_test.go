@@ -195,7 +195,7 @@ func TestUpdateCRDConversionWebhookConfigurationDegraded(t *testing.T) {
 			// start the mock webhook servers
 			for _, server := range tc.webhookServers {
 				// get the corresponding config, so we can update the port and CABundle
-				crd, err := c.crdLister.Get(server.Config)
+				crd, err := c.crdLister.Get(ctx, server.Config)
 				if err != nil {
 					t.Fatal(err)
 				}

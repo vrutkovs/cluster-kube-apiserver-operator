@@ -68,11 +68,13 @@ func NewCheckEndpointsCommand() *cobra.Command {
 		)
 
 		timeToStart := newTimeToStartController(
+			ctx,
 			apiextensionsInformers.Apiextensions().V1().CustomResourceDefinitions(),
 			recorder,
 		)
 
 		stopController := newStopController(
+			ctx,
 			apiextensionsInformers.Apiextensions().V1().CustomResourceDefinitions(),
 			recorder,
 		)

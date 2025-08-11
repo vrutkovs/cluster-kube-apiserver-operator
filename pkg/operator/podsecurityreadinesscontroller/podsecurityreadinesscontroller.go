@@ -17,6 +17,10 @@ import (
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -63,6 +67,12 @@ func NewPodSecurityReadinessController(
 }
 
 func (c *PodSecurityReadinessController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.PodSecurityReadinessController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncCtx.QueueKey()),
+	))
+	defer span.End()
+
 	nsList, err := c.kubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{LabelSelector: c.namespaceSelector})
 	if err != nil {
 		return err
@@ -71,6 +81,8 @@ func (c *PodSecurityReadinessController) sync(ctx context.Context, syncCtx facto
 	conditions := podSecurityOperatorConditions{}
 	for _, ns := range nsList.Items {
 		err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			span.AddEvent(ns.Name)
+
 			isViolating, err := c.isNamespaceViolating(ctx, &ns)
 			if apierrors.IsNotFound(err) {
 				return nil

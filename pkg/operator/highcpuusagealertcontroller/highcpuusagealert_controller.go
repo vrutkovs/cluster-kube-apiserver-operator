@@ -14,6 +14,7 @@ import (
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceapply"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceread"
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,6 +22,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/utils/cpuset"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // default and taken from the docs
@@ -53,13 +58,19 @@ func NewHighCPUUsageAlertController(
 	})
 
 	return factory.New().
-		WithInformers(configInformer.Infrastructures().Informer(), configInformer.ClusterVersions().Informer(), prometheusAlertInformerForTargetNamespace.Informer()).
+		WithInformersQueueKeyFunc(v1helpers.ObjToString, configInformer.Infrastructures().Informer(), configInformer.ClusterVersions().Informer(), prometheusAlertInformerForTargetNamespace.Informer()).
 		WithSync(c.sync).ResyncEvery(10*time.Minute).
 		ToController("highCPUUsageAlertController", recorder.WithComponentSuffix("high-cpu-usage-alert-controller"))
 }
 
 func (c *highCPUUsageAlertController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	infra, err := c.infraLister.Get("cluster")
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.highCPUUsageAlertController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncCtx.QueueKey()),
+	))
+	defer span.End()
+
+	infra, err := c.infraLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
@@ -74,7 +85,7 @@ func (c *highCPUUsageAlertController) sync(ctx context.Context, syncCtx factory.
 			return err
 		}
 	} else {
-		clusterVersion, err := c.clusterVersionLister.Get("version")
+		clusterVersion, err := c.clusterVersionLister.Get(ctx, "version")
 		if err != nil {
 			return err
 		}

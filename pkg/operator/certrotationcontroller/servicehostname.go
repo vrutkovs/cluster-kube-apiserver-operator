@@ -1,6 +1,7 @@
 package certrotationcontroller
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -14,14 +15,14 @@ import (
 
 const workQueueKey = "key"
 
-func (c *CertRotationController) syncServiceHostnames() error {
+func (c *CertRotationController) syncServiceHostnames(ctx context.Context) error {
 	hostnames := sets.NewString("kubernetes", "kubernetes.default", "kubernetes.default.svc")
 	hostnames.Insert("openshift", "openshift.default", "openshift.default.svc")
 	// our DNS operator doesn't allow this to change and doesn't expose this value anywhere.
 	hostnames.Insert("kubernetes.default.svc." + "cluster.local")
 	hostnames.Insert("openshift.default.svc." + "cluster.local")
 
-	networkConfig, err := c.networkLister.Get("cluster")
+	networkConfig, err := c.networkLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
@@ -48,19 +49,19 @@ func (c *CertRotationController) syncServiceHostnames() error {
 	return nil
 }
 
-func (c *CertRotationController) runServiceHostnames() {
-	for c.processServiceHostnames() {
+func (c *CertRotationController) runServiceHostnames(ctx context.Context) {
+	for c.processServiceHostnames(ctx) {
 	}
 }
 
-func (c *CertRotationController) processServiceHostnames() bool {
+func (c *CertRotationController) processServiceHostnames(ctx context.Context) bool {
 	dsKey, quit := c.serviceHostnamesQueue.Get()
 	if quit {
 		return false
 	}
 	defer c.serviceHostnamesQueue.Done(dsKey)
 
-	err := c.syncServiceHostnames()
+	err := c.syncServiceHostnames(ctx)
 	if err == nil {
 		c.serviceHostnamesQueue.Forget(dsKey)
 		return true

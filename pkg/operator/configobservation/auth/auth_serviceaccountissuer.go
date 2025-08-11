@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"sort"
@@ -35,22 +36,23 @@ const defaultServiceAccountIssuerValue = "https://kubernetes.default.svc"
 // the default value if Authentication.Spec.ServiceAccountIssuer specifies a valid
 // non-empty value.
 func ObserveServiceAccountIssuer(
+	ctx context.Context,
 	genericListers configobserver.Listers,
 	recorder events.Recorder,
 	existingConfig map[string]interface{},
 ) (map[string]interface{}, []error) {
 
 	listers := genericListers.(configobservation.Listers)
-	ret, errs := observedConfig(existingConfig, listers.KubeAPIServerOperatorLister().Get, listers.InfrastructureLister().Get, recorder)
+	ret, errs := observedConfig(ctx, existingConfig, listers.KubeAPIServerOperatorLister().Get, listers.InfrastructureLister().Get, recorder)
 	return configobserver.Pruned(ret, serviceAccountIssuerPath, audiencesPath, jwksURIPath), errs
 }
 
 // observedConfig returns an unstructured fragment of KubeAPIServerConfig that may
 // include an override of the default service account issuer if one was set in the
 // Authentication resource.
-func observedConfig(existingConfig map[string]interface{},
-	getOperator func(name string) (*operatorv1.KubeAPIServer, error),
-	getInfrastructureConfig func(string) (*configv1.Infrastructure, error), recorder events.Recorder) (map[string]interface{}, []error) {
+func observedConfig(ctx context.Context, existingConfig map[string]interface{},
+	getOperator func(ctx context.Context, name string) (*operatorv1.KubeAPIServer, error),
+	getInfrastructureConfig func(ctx context.Context, name string) (*configv1.Infrastructure, error), recorder events.Recorder) (map[string]interface{}, []error) {
 
 	errs := []error{}
 	var issuerChanged bool
@@ -86,7 +88,7 @@ func observedConfig(existingConfig map[string]interface{},
 		existingConfigIssuers = []string{existingConfigIssuer}
 	}
 
-	operator, err := getOperator("cluster")
+	operator, err := getOperator(ctx, "cluster")
 	if apierrors.IsNotFound(err) {
 		klog.Warningf("kubeapiserver.operators.openshift.io/cluster: not found")
 		operator = &operatorv1.KubeAPIServer{}
@@ -129,7 +131,7 @@ func observedConfig(existingConfig map[string]interface{},
 	// the issuer and the api-audiences but configure the jwks-uri to point to
 	// the LB so that it does not default to KAS IP which is not included in the serving certs
 	if observedActiveIssuer == defaultServiceAccountIssuerValue {
-		infrastructureConfig, err := getInfrastructureConfig("cluster")
+		infrastructureConfig, err := getInfrastructureConfig(ctx, "cluster")
 		if err != nil {
 			return existingConfig, append(errs, err)
 		}

@@ -86,7 +86,7 @@ func TestObserveKubeletMinimumVersion(t *testing.T) {
 			}
 
 			// act
-			actualObservedConfig, errs := NewMinimumKubeletVersionObserver(fg)(listers, eventRecorder, test.existingConfig)
+			actualObservedConfig, errs := NewMinimumKubeletVersionObserver(fg)(t.Context(), listers, eventRecorder, test.existingConfig)
 
 			// validate
 			if len(errs) > 0 {

@@ -74,7 +74,7 @@ func TestObserveAdditionalCORSAllowedOrigins(t *testing.T) {
 				APIServerLister_: configlistersv1.NewAPIServerLister(indexer),
 				ResourceSync:     &mockResourceSyncer{t: t, synced: synced},
 			}
-			result, errs := ObserveAdditionalCORSAllowedOrigins(listers, events.NewInMemoryRecorder(t.Name(), clock.RealClock{}), tc.existing)
+			result, errs := ObserveAdditionalCORSAllowedOrigins(t.Context(), listers, events.NewInMemoryRecorder(t.Name(), clock.RealClock{}), tc.existing)
 			if len(errs) > 0 {
 				t.Errorf("Expected 0 errors, got %v.", len(errs))
 			}

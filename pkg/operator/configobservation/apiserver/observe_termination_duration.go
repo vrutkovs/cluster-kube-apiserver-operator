@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,7 +19,7 @@ var gracefulTerminationDurationPath = []string{"gracefulTerminationDuration"}
 
 // ObserveShutdownDelayDuration allows for overwriting shutdown-delay-duration value.
 // It exists because the time needed for an LB to notice and remove unhealthy instances might vary by platform.
-func ObserveShutdownDelayDuration(genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveShutdownDelayDuration(ctx context.Context, genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	defer func() {
 		// Prune the observed config so that it only contains shutdown-delay-duration field.
 		ret = configobserver.Pruned(ret, shutdownDelayDurationPath)
@@ -27,7 +28,7 @@ func ObserveShutdownDelayDuration(genericListers configobserver.Listers, _ event
 	// read the observed value
 	var observedShutdownDelayDuration string
 	listers := genericListers.(configobservation.Listers)
-	infra, err := listers.InfrastructureLister().Get("cluster")
+	infra, err := listers.InfrastructureLister().Get(ctx, "cluster")
 	if err != nil && !apierrors.IsNotFound(err) {
 		// we got an error so without the infrastructure object we are not able to determine the type of platform we are running on
 		return existingConfig, append(errs, err)
@@ -74,7 +75,7 @@ func ObserveShutdownDelayDuration(genericListers configobserver.Listers, _ event
 }
 
 // ObserveGracefulTerminationDuration sets the graceful termination duration according to the current platform.
-func ObserveGracefulTerminationDuration(genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveGracefulTerminationDuration(ctx context.Context, genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	defer func() {
 		// Prune the observed config so that it only contains gracefulTerminationDuration field.
 		ret = configobserver.Pruned(ret, gracefulTerminationDurationPath)
@@ -83,7 +84,7 @@ func ObserveGracefulTerminationDuration(genericListers configobserver.Listers, _
 	// read the observed value
 	var observedGracefulTerminationDuration string
 	listers := genericListers.(configobservation.Listers)
-	infra, err := listers.InfrastructureLister().Get("cluster")
+	infra, err := listers.InfrastructureLister().Get(ctx, "cluster")
 	if err != nil && !apierrors.IsNotFound(err) {
 		// we got an error so without the infrastructure object we are not able to determine the type of platform we are running on
 		return existingConfig, append(errs, err)

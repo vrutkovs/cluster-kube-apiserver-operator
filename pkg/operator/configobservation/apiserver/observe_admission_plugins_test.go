@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -56,7 +57,7 @@ func TestObserveAdmissionPlugins(t *testing.T) {
 			name:           "plugin checker with error",
 			existingConfig: map[string]any{"key": "value"},
 			pluginCheckers: []pluginCheckerFunc{
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return nil, nil, fmt.Errorf("plugin checker error")
 				},
 			},
@@ -67,13 +68,13 @@ func TestObserveAdmissionPlugins(t *testing.T) {
 			name:           "plugin checkers must enable and disable plugins",
 			existingConfig: map[string]any{"key": "value"},
 			pluginCheckers: []pluginCheckerFunc{
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return []string{"enabled1"}, nil, nil
 				},
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return nil, []string{"disabled1"}, nil
 				},
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return []string{"enabled2"}, []string{"disabled2"}, nil
 				},
 			},
@@ -95,13 +96,13 @@ func TestObserveAdmissionPlugins(t *testing.T) {
 				},
 			},
 			pluginCheckers: []pluginCheckerFunc{
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return []string{"enabled1"}, nil, nil
 				},
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return nil, []string{"disabled1"}, nil
 				},
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return []string{"enabled2"}, []string{"disabled2"}, nil
 				},
 			},
@@ -116,10 +117,10 @@ func TestObserveAdmissionPlugins(t *testing.T) {
 		{
 			name: "plugin checkers must return disjoint enabled and disabled plugin slices",
 			pluginCheckers: []pluginCheckerFunc{
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return []string{"enabled1", "enabled2"}, nil, nil
 				},
-				func(_ configobservation.Listers) ([]string, []string, error) {
+				func(_ context.Context, _ configobservation.Listers) ([]string, []string, error) {
 					return []string{"enabled3"}, []string{"enabled2"}, nil
 				},
 			},
@@ -131,7 +132,7 @@ func TestObserveAdmissionPlugins(t *testing.T) {
 
 			eventRecorder := events.NewInMemoryRecorder("TestObserveAdmissionPlugins", clocktesting.NewFakePassiveClock(time.Now()))
 			listers := configobservation.Listers{}
-			gotConfig, gotErrs := ObserveAdmissionPlugins(listers, eventRecorder, tt.existingConfig)
+			gotConfig, gotErrs := ObserveAdmissionPlugins(context.Background(), listers, eventRecorder, tt.existingConfig)
 
 			if tt.expectErrors != (len(gotErrs) > 0) {
 				t.Errorf("expected errors: %v; got %v", tt.expectErrors, gotErrs)
@@ -214,7 +215,7 @@ func TestRoleBindingRestrictionPluginChecker(t *testing.T) {
 				AuthConfigLister: configlistersv1.NewAuthenticationLister(indexer),
 			}
 
-			enabled, disabled, err := roleBindingRestrictionPluginChecker(listers)
+			enabled, disabled, err := roleBindingRestrictionPluginChecker(context.Background(), listers)
 			if tt.expectError != (err != nil) {
 				t.Errorf("expected errors: %v; got %v", tt.expectError, err)
 			}

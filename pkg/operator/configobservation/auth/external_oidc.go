@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"path"
 
@@ -44,7 +45,7 @@ type externalOIDC struct {
 // to the KAS pods by setting the --authentication-config apiserver argument. It also
 // takes care of synchronizing the structured auth config file into the apiserver's namespace
 // so that it gets mounted as a static file on each node.
-func (o *externalOIDC) ObserveExternalOIDC(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
+func (o *externalOIDC) ObserveExternalOIDC(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
 	defer func() {
 		ret = configobserver.Pruned(ret, authConfigPath)
 	}()
@@ -64,7 +65,7 @@ func (o *externalOIDC) ObserveExternalOIDC(genericListers configobserver.Listers
 	}
 
 	listers := genericListers.(configobservation.Listers)
-	auth, err := listers.AuthConfigLister.Get("cluster")
+	auth, err := listers.AuthConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		recorder.Eventf("ObserveExternalOIDC", "authentications.config.openshift.io/cluster: not found")
 		klog.Warningf("authentications.config.openshift.io/cluster: not found")
@@ -73,7 +74,7 @@ func (o *externalOIDC) ObserveExternalOIDC(genericListers configobserver.Listers
 		return existingConfig, []error{err}
 	}
 
-	targetAuthConfig, err := listers.ConfigMapLister().ConfigMaps(operatorclient.TargetNamespace).Get(AuthConfigCMName)
+	targetAuthConfig, err := listers.ConfigMapLister().ConfigMaps(operatorclient.TargetNamespace).Get(ctx, AuthConfigCMName)
 	if err != nil && !errors.IsNotFound(err) {
 		return existingConfig, []error{err}
 	}
@@ -96,7 +97,7 @@ func (o *externalOIDC) ObserveExternalOIDC(genericListers configobserver.Listers
 
 	// auth type is OIDC
 
-	sourceAuthConfig, err := validateSourceConfigMap(listers)
+	sourceAuthConfig, err := validateSourceConfigMap(ctx, listers)
 	if err != nil {
 		return existingConfig, []error{err}
 
@@ -124,8 +125,8 @@ func (o *externalOIDC) ObserveExternalOIDC(genericListers configobserver.Listers
 	return observedConfig, nil
 }
 
-func validateSourceConfigMap(listers configobservation.Listers) (*corev1.ConfigMap, error) {
-	sourceAuthConfig, err := listers.ConfigMapLister().ConfigMaps(SourceAuthConfigCMNamespace).Get(AuthConfigCMName)
+func validateSourceConfigMap(ctx context.Context, listers configobservation.Listers) (*corev1.ConfigMap, error) {
+	sourceAuthConfig, err := listers.ConfigMapLister().ConfigMaps(SourceAuthConfigCMNamespace).Get(ctx, AuthConfigCMName)
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {

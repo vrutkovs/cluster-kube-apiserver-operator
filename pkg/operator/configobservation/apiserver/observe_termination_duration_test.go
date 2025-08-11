@@ -82,7 +82,7 @@ func TestObserveWatchTerminationDuration(t *testing.T) {
 			}
 
 			// act
-			observedKubeAPIConfig, err := ObserveGracefulTerminationDuration(listers, eventRecorder, scenario.existingKubeAPIConfig)
+			observedKubeAPIConfig, err := ObserveGracefulTerminationDuration(t.Context(), listers, eventRecorder, scenario.existingKubeAPIConfig)
 
 			// validate
 			if len(err) > 0 {
@@ -195,7 +195,7 @@ func TestObserveShutdownDelayDuration(t *testing.T) {
 			}
 
 			// act
-			observedKubeAPIConfig, err := ObserveShutdownDelayDuration(listers, eventRecorder, unstructuredAPIConfig(t, scenario.existingConfig))
+			observedKubeAPIConfig, err := ObserveShutdownDelayDuration(t.Context(), listers, eventRecorder, unstructuredAPIConfig(t, scenario.existingConfig))
 
 			// validate
 			if len(err) > 0 {

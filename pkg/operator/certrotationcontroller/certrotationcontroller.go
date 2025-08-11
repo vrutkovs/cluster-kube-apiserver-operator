@@ -869,7 +869,7 @@ func newCertRotationController(
 	return ret, nil
 }
 
-func (c *CertRotationController) WaitForReady(stopCh <-chan struct{}) {
+func (c *CertRotationController) WaitForReady(ctx context.Context, stopCh <-chan struct{}) {
 	klog.Infof("Waiting for CertRotation")
 	defer klog.Infof("Finished waiting for CertRotation")
 
@@ -879,13 +879,13 @@ func (c *CertRotationController) WaitForReady(stopCh <-chan struct{}) {
 	}
 
 	// need to sync at least once before beginning.  if we fail, we cannot start rotating certificates
-	if err := c.syncServiceHostnames(); err != nil {
+	if err := c.syncServiceHostnames(ctx); err != nil {
 		panic(err)
 	}
-	if err := c.syncExternalLoadBalancerHostnames(); err != nil {
+	if err := c.syncExternalLoadBalancerHostnames(ctx); err != nil {
 		panic(err)
 	}
-	if err := c.syncInternalLoadBalancerHostnames(); err != nil {
+	if err := c.syncInternalLoadBalancerHostnames(ctx); err != nil {
 		panic(err)
 	}
 }
@@ -907,11 +907,11 @@ func (c *CertRotationController) RunOnce() error {
 func (c *CertRotationController) Run(ctx context.Context, workers int) {
 	klog.Infof("Starting CertRotation")
 	defer klog.Infof("Shutting down CertRotation")
-	c.WaitForReady(ctx.Done())
+	c.WaitForReady(ctx, ctx.Done())
 
-	go wait.Until(c.runServiceHostnames, time.Second, ctx.Done())
-	go wait.Until(c.runExternalLoadBalancerHostnames, time.Second, ctx.Done())
-	go wait.Until(c.runInternalLoadBalancerHostnames, time.Second, ctx.Done())
+	go wait.UntilWithContext(ctx, c.runServiceHostnames, time.Second)
+	go wait.UntilWithContext(ctx, c.runExternalLoadBalancerHostnames, time.Second)
+	go wait.UntilWithContext(ctx, c.runInternalLoadBalancerHostnames, time.Second)
 
 	for _, certRotator := range c.certRotators {
 		go certRotator.Run(ctx, workers)

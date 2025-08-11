@@ -13,6 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	coreinformersv1 "k8s.io/client-go/informers/core/v1"
 	corelistersv1 "k8s.io/client-go/listers/core/v1"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -35,14 +39,20 @@ func NewCertRotationTimeUpgradeableController(
 		configMapLister: configMapInformer.Lister(),
 	}
 
-	return factory.New().WithInformers(
+	return factory.New().WithInformersQueueKeyFunc(v1helpers.ObjToString,
 		operatorClient.Informer(),
 		configMapInformer.Informer(),
 	).WithSync(c.sync).ResyncEvery(time.Minute).ToController("CertRotationTimeUpgradeableController", eventRecorder.WithComponentSuffix("certRotationTime-upgradeable"))
 }
 
 func (c *CertRotationTimeUpgradeableController) sync(ctx context.Context, syncContext factory.SyncContext) error {
-	certRotationTimeConfigMap, err := c.configMapLister.ConfigMaps("openshift-config").Get("unsupported-cert-rotation-config")
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.CertRotationTimeUpgradeableController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncContext.QueueKey()),
+	))
+	defer span.End()
+
+	certRotationTimeConfigMap, err := c.configMapLister.ConfigMaps("openshift-config").Get(ctx, "unsupported-cert-rotation-config")
 	if !errors.IsNotFound(err) && err != nil {
 		return err
 	}

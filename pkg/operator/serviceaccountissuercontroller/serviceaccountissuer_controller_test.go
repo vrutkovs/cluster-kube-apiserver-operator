@@ -3,6 +3,10 @@ package serviceaccountissuercontroller
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"testing"
+	"time"
+
 	configv1 "github.com/openshift/api/config/v1"
 	operatorv1 "github.com/openshift/api/operator/v1"
 	configv1lister "github.com/openshift/client-go/config/listers/config/v1"
@@ -12,9 +16,6 @@ import (
 	"github.com/openshift/library-go/pkg/operator/events/eventstesting"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"reflect"
-	"testing"
-	"time"
 )
 
 type fakeAuthLister struct {
@@ -25,11 +26,11 @@ func newFakeAuthLister(obj configv1.Authentication) configv1lister.Authenticatio
 	return &fakeAuthLister{obj: obj}
 }
 
-func (f *fakeAuthLister) List(selector labels.Selector) (ret []*configv1.Authentication, err error) {
+func (f *fakeAuthLister) List(ctx context.Context, selector labels.Selector) (ret []*configv1.Authentication, err error) {
 	panic("implement me")
 }
 
-func (f *fakeAuthLister) Get(name string) (*configv1.Authentication, error) {
+func (f *fakeAuthLister) Get(ctx context.Context, name string) (*configv1.Authentication, error) {
 	return &f.obj, nil
 }
 
@@ -41,11 +42,11 @@ func newFakeOperatorLister(obj operatorv1.KubeAPIServer) operatorlistersv1.KubeA
 	return &fakeOperatorLister{obj: obj}
 }
 
-func (f *fakeOperatorLister) List(selector labels.Selector) (ret []*operatorv1.KubeAPIServer, err error) {
+func (f *fakeOperatorLister) List(ctx context.Context, selector labels.Selector) (ret []*operatorv1.KubeAPIServer, err error) {
 	panic("implement me")
 }
 
-func (f *fakeOperatorLister) Get(name string) (*operatorv1.KubeAPIServer, error) {
+func (f *fakeOperatorLister) Get(ctx context.Context, name string) (*operatorv1.KubeAPIServer, error) {
 	return &f.obj, nil
 }
 
