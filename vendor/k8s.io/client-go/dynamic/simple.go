@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -34,6 +35,10 @@ import (
 	"k8s.io/client-go/util/consistencydetector"
 	"k8s.io/client-go/util/watchlist"
 	"k8s.io/klog/v2"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type DynamicClient struct {
@@ -122,6 +127,14 @@ func (c *dynamicResourceClient) Namespace(ns string) ResourceInterface {
 }
 
 func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Unstructured, opts metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.Create", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	name := ""
 	if len(subresources) > 0 {
 		accessor, err := meta.Accessor(obj)
@@ -133,6 +146,7 @@ func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Un
 			return nil, fmt.Errorf("name is required")
 		}
 	}
+	span.SetAttributes(attribute.String("name", name))
 	if err := validateNamespaceWithOptionalName(c.namespace, name); err != nil {
 		return nil, err
 	}
@@ -143,7 +157,9 @@ func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Un
 		AbsPath(append(c.makeURLSegments(name), subresources...)...).
 		Body(obj).
 		SpecificallyVersionedParams(&opts, dynamicParameterCodec, versionV1).
-		Do(ctx).Into(&out); err != nil {
+		Trace(ctx, span, "request ready").
+		Do(ctx).
+		Trace(ctx, span, "response received").Into(&out); err != nil {
 		return nil, err
 	}
 
@@ -151,6 +167,14 @@ func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Un
 }
 
 func (c *dynamicResourceClient) Update(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.Update", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return nil, err
@@ -159,6 +183,7 @@ func (c *dynamicResourceClient) Update(ctx context.Context, obj *unstructured.Un
 	if len(name) == 0 {
 		return nil, fmt.Errorf("name is required")
 	}
+	span.SetAttributes(attribute.String("name", name))
 	if err := validateNamespaceWithOptionalName(c.namespace, name); err != nil {
 		return nil, err
 	}
@@ -169,7 +194,9 @@ func (c *dynamicResourceClient) Update(ctx context.Context, obj *unstructured.Un
 		AbsPath(append(c.makeURLSegments(name), subresources...)...).
 		Body(obj).
 		SpecificallyVersionedParams(&opts, dynamicParameterCodec, versionV1).
-		Do(ctx).Into(&out); err != nil {
+		Trace(ctx, span, "request ready").
+		Do(ctx).
+		Trace(ctx, span, "response received").Into(&out); err != nil {
 		return nil, err
 	}
 
@@ -177,6 +204,14 @@ func (c *dynamicResourceClient) Update(ctx context.Context, obj *unstructured.Un
 }
 
 func (c *dynamicResourceClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, opts metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.UpdateStatus", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return nil, err
@@ -185,6 +220,7 @@ func (c *dynamicResourceClient) UpdateStatus(ctx context.Context, obj *unstructu
 	if len(name) == 0 {
 		return nil, fmt.Errorf("name is required")
 	}
+	span.SetAttributes(attribute.String("name", name))
 	if err := validateNamespaceWithOptionalName(c.namespace, name); err != nil {
 		return nil, err
 	}
@@ -195,7 +231,9 @@ func (c *dynamicResourceClient) UpdateStatus(ctx context.Context, obj *unstructu
 		AbsPath(append(c.makeURLSegments(name), "status")...).
 		Body(obj).
 		SpecificallyVersionedParams(&opts, dynamicParameterCodec, versionV1).
-		Do(ctx).Into(&out); err != nil {
+		Trace(ctx, span, "request ready").
+		Do(ctx).
+		Trace(ctx, span, "response received").Into(&out); err != nil {
 		return nil, err
 	}
 
@@ -203,6 +241,14 @@ func (c *dynamicResourceClient) UpdateStatus(ctx context.Context, obj *unstructu
 }
 
 func (c *dynamicResourceClient) Delete(ctx context.Context, name string, opts metav1.DeleteOptions, subresources ...string) error {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.Delete", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	if len(name) == 0 {
 		return fmt.Errorf("name is required")
 	}
@@ -214,7 +260,9 @@ func (c *dynamicResourceClient) Delete(ctx context.Context, name string, opts me
 		Delete().
 		AbsPath(append(c.makeURLSegments(name), subresources...)...).
 		Body(&opts).
-		Do(ctx)
+		Trace(ctx, span, "request ready").
+		Do(ctx).
+		Trace(ctx, span, "response received")
 	return result.Error()
 }
 
@@ -233,6 +281,15 @@ func (c *dynamicResourceClient) DeleteCollection(ctx context.Context, opts metav
 }
 
 func (c *dynamicResourceClient) Get(ctx context.Context, name string, opts metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.Get", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("name", name),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	if len(name) == 0 {
 		return nil, fmt.Errorf("name is required")
 	}
@@ -244,22 +301,32 @@ func (c *dynamicResourceClient) Get(ctx context.Context, name string, opts metav
 		Get().
 		AbsPath(append(c.makeURLSegments(name), subresources...)...).
 		SpecificallyVersionedParams(&opts, dynamicParameterCodec, versionV1).
-		Do(ctx).Into(&out); err != nil {
+		Trace(ctx, span, "request ready").
+		Do(ctx).
+		Trace(ctx, span, "response received").Into(&out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
 func (c *dynamicResourceClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.List", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	if watchListOptions, hasWatchListOptionsPrepared, watchListOptionsErr := watchlist.PrepareWatchListOptionsFromListOptions(opts); watchListOptionsErr != nil {
-		klog.Warningf("Failed preparing watchlist options for %v, falling back to the standard LIST semantics, err = %v", c.resource, watchListOptionsErr)
+		klog.WarningfWithCtx(ctx, "Failed preparing watchlist options for %v, falling back to the standard LIST semantics, err = %v", c.resource, watchListOptionsErr)
 	} else if hasWatchListOptionsPrepared {
 		result, err := c.watchList(ctx, watchListOptions)
 		if err == nil {
 			consistencydetector.CheckWatchListFromCacheDataConsistencyIfRequested(ctx, fmt.Sprintf("watchlist request for %v", c.resource), c.list, opts, result)
 			return result, nil
 		}
-		klog.Warningf("The watchlist request for %v ended with an error, falling back to the standard LIST semantics, err = %v", c.resource, err)
+		klog.WarningfWithCtx(ctx, "The watchlist request for %v ended with an error, falling back to the standard LIST semantics, err = %v", c.resource, err)
 	}
 	result, err := c.list(ctx, opts)
 	if err == nil {
@@ -315,6 +382,15 @@ func (c *dynamicResourceClient) Watch(ctx context.Context, opts metav1.ListOptio
 }
 
 func (c *dynamicResourceClient) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.Patch", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("name", name),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	if len(name) == 0 {
 		return nil, fmt.Errorf("name is required")
 	}
@@ -334,6 +410,15 @@ func (c *dynamicResourceClient) Patch(ctx context.Context, name string, pt types
 }
 
 func (c *dynamicResourceClient) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, opts metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	tracer := otel.GetTracerProvider().Tracer("client-go")
+	pc, _, _, _ := runtime.Caller(1)
+	file, line := runtime.FuncForPC(pc).FileLine(pc)
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("dynamicResourceClient.%s.Apply", c.resource), trace.WithAttributes(
+		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
+		attribute.String("name", name),
+		attribute.String("namespace", c.namespace),
+	))
+	defer span.End()
 	if len(name) == 0 {
 		return nil, fmt.Errorf("name is required")
 	}

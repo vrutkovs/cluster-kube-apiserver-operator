@@ -3,6 +3,8 @@
 package v1
 
 import (
+	"context"
+
 	securityv1 "github.com/openshift/api/security/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
@@ -14,10 +16,10 @@ import (
 type SecurityContextConstraintsLister interface {
 	// List lists all SecurityContextConstraints in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*securityv1.SecurityContextConstraints, err error)
+	List(ctx context.Context, selector labels.Selector) (ret []*securityv1.SecurityContextConstraints, err error)
 	// Get retrieves the SecurityContextConstraints from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*securityv1.SecurityContextConstraints, error)
+	Get(ctx context.Context, name string) (*securityv1.SecurityContextConstraints, error)
 	SecurityContextConstraintsListerExpansion
 }
 
