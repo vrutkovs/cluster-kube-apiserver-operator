@@ -78,6 +78,13 @@ import (
 	"k8s.io/utils/ptr"
 	kubemigratorclient "sigs.k8s.io/kube-storage-version-migrator/pkg/clients/clientset"
 	migrationv1alpha1informer "sigs.k8s.io/kube-storage-version-migrator/pkg/clients/informer"
+
+	"go.opentelemetry.io/otel"
+	otlptracegrpc "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	oltpresource "go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	tracing "k8s.io/component-base/tracing"
+	tracingapi "k8s.io/component-base/tracing/api/v1"
 )
 
 func RunOperator(ctx context.Context, controllerContext *controllercmd.ControllerContext) error {
@@ -118,6 +125,25 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 	if err != nil {
 		return err
 	}
+
+	tracingEndpoint := os.Getenv("TRACING_ENDPOINT")
+	traceConfig := &tracingapi.TracingConfiguration{
+		Endpoint:               ptr.To(tracingEndpoint),
+		SamplingRatePerMillion: ptr.To(int32(999999)),
+	}
+	opts := []otlptracegrpc.Option{}
+
+	resourceOpts := []oltpresource.Option{
+		oltpresource.WithAttributes(
+			semconv.ServiceNameKey.String("ckao"),
+			semconv.ServiceInstanceIDKey.String(controllerContext.OperatorNamespace),
+		),
+	}
+	tp, err := tracing.NewProvider(ctx, traceConfig, opts, resourceOpts)
+	if err != nil {
+		return err
+	}
+	otel.SetTracerProvider(tp)
 
 	kubeInformersForNamespaces := v1helpers.NewKubeInformersForNamespaces(
 		kubeClient,
