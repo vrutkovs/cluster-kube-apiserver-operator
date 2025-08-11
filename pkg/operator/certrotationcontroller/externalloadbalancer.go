@@ -1,6 +1,7 @@
 package certrotationcontroller
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,8 +11,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func (c *CertRotationController) syncExternalLoadBalancerHostnames() error {
-	infrastructureConfig, err := c.infrastructureLister.Get("cluster")
+func (c *CertRotationController) syncExternalLoadBalancerHostnames(ctx context.Context) error {
+	infrastructureConfig, err := c.infrastructureLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
@@ -29,19 +30,19 @@ func (c *CertRotationController) syncExternalLoadBalancerHostnames() error {
 	return nil
 }
 
-func (c *CertRotationController) runExternalLoadBalancerHostnames() {
-	for c.processExternalLoadBalancerHostnames() {
+func (c *CertRotationController) runExternalLoadBalancerHostnames(ctx context.Context) {
+	for c.processExternalLoadBalancerHostnames(ctx) {
 	}
 }
 
-func (c *CertRotationController) processExternalLoadBalancerHostnames() bool {
+func (c *CertRotationController) processExternalLoadBalancerHostnames(ctx context.Context) bool {
 	dsKey, quit := c.externalLoadBalancerHostnamesQueue.Get()
 	if quit {
 		return false
 	}
 	defer c.externalLoadBalancerHostnamesQueue.Done(dsKey)
 
-	err := c.syncExternalLoadBalancerHostnames()
+	err := c.syncExternalLoadBalancerHostnames(ctx)
 	if err == nil {
 		c.externalLoadBalancerHostnamesQueue.Forget(dsKey)
 		return true

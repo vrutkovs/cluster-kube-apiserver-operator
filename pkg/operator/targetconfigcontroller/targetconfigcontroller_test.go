@@ -137,7 +137,7 @@ func TestIsRequiredConfigPresent(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			actual := c.isRequiredConfigPresent([]byte(test.config), false)
+			actual := c.isRequiredConfigPresent(t.Context(), []byte(test.config), false)
 			switch {
 			case actual == nil && len(test.expectedError) == 0:
 			case actual == nil && len(test.expectedError) != 0:
@@ -422,7 +422,7 @@ func TestIsRequiredConfigPresentEtcdEndpoints(t *testing.T) {
 			kubeClient := fake.NewSimpleClientset(test.etcdEndpointsCM)
 			c := TargetConfigController{configMapLister: &configMapLister{client: kubeClient, namespace: etcdEndpointNamespace}}
 			config := fmt.Sprintf(configTemplate, test.etcdServers)
-			actual := c.isRequiredConfigPresent([]byte(config), test.isNotSingleNode)
+			actual := c.isRequiredConfigPresent(t.Context(), []byte(config), test.isNotSingleNode)
 			switch {
 			case actual == nil && len(test.expectedError) == 0:
 			case actual == nil && len(test.expectedError) != 0:
@@ -593,7 +593,7 @@ type configMapLister struct {
 var _ corev1listers.ConfigMapNamespaceLister = &configMapLister{}
 var _ corev1listers.ConfigMapLister = &configMapLister{}
 
-func (l *configMapLister) List(selector labels.Selector) (ret []*corev1.ConfigMap, err error) {
+func (l *configMapLister) List(ctx context.Context, selector labels.Selector) (ret []*corev1.ConfigMap, err error) {
 	list, err := l.client.CoreV1().ConfigMaps(l.namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -613,8 +613,8 @@ func (l *configMapLister) ConfigMaps(namespace string) corev1listers.ConfigMapNa
 	}
 }
 
-func (l *configMapLister) Get(name string) (*corev1.ConfigMap, error) {
-	return l.client.CoreV1().ConfigMaps(l.namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (l *configMapLister) Get(ctx context.Context, name string) (*corev1.ConfigMap, error) {
+	return l.client.CoreV1().ConfigMaps(l.namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 func TestManageClientCABundle(t *testing.T) {

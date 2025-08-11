@@ -1,6 +1,8 @@
 package etcdendpoints
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/openshift/library-go/pkg/operator/configobserver"
@@ -10,7 +12,7 @@ import (
 
 // ObserveStorageURLs observes the storage config URLs. If there is a problem observing the current storage config URLs,
 // then the previously observed storage config URLs will be re-used.
-func ObserveStorageURLs(genericListers configobserver.Listers, recorder events.Recorder, currentConfig map[string]interface{}) (map[string]interface{}, []error) {
+func ObserveStorageURLs(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, currentConfig map[string]interface{}) (map[string]interface{}, []error) {
 	var errs []error
 
 	// get the current config either from the old path or the new one
@@ -34,6 +36,6 @@ func ObserveStorageURLs(genericListers configobserver.Listers, recorder events.R
 	}
 
 	// always stores the config at the new path
-	updatedConfig, newErrs := libgoetcd.ObserveStorageURLsToArgumentsWithAlwaysLocal(genericListers, recorder, previouslyObservedConfig)
+	updatedConfig, newErrs := libgoetcd.ObserveStorageURLsToArgumentsWithAlwaysLocal(ctx, genericListers, recorder, previouslyObservedConfig)
 	return updatedConfig, append(errs, newErrs...)
 }

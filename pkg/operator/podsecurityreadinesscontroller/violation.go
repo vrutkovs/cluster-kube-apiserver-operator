@@ -5,6 +5,9 @@ import (
 	"fmt"
 
 	securityv1 "github.com/openshift/api/security/v1"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -22,6 +25,12 @@ var (
 )
 
 func (c *PodSecurityReadinessController) isNamespaceViolating(ctx context.Context, ns *corev1.Namespace) (bool, error) {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "isNamespaceViolating", trace.WithAttributes(
+		attribute.String("namespace", ns.Name),
+	))
+	defer span.End()
+
 	nsApplyConfig, err := applyconfiguration.ExtractNamespace(ns, syncerControllerName)
 	if err != nil {
 		return false, err

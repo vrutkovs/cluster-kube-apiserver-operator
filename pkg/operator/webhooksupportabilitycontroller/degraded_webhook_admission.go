@@ -5,17 +5,26 @@ import (
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
 func (c *webhookSupportabilityController) updateMutatingAdmissionWebhookConfigurationDegraded(ctx context.Context) v1helpers.UpdateStatusFunc {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "webhook.updateMutatingAdmissionWebhookConfigurationDegraded", trace.WithAttributes(
+		attribute.String("name", c.Name()),
+	))
+	defer span.End()
+
 	condition := operatorv1.OperatorCondition{
 		Type:   MutatingAdmissionWebhookConfigurationErrorType,
 		Status: operatorv1.ConditionUnknown,
 	}
-	webhookConfigurations, err := c.mutatingWebhookLister.List(labels.Everything())
+	webhookConfigurations, err := c.mutatingWebhookLister.List(ctx, labels.Everything())
 	if err != nil {
 		condition.Message = err.Error()
 		return v1helpers.UpdateConditionFn(condition)
@@ -44,11 +53,16 @@ func (c *webhookSupportabilityController) updateMutatingAdmissionWebhookConfigur
 }
 
 func (c *webhookSupportabilityController) updateValidatingAdmissionWebhookConfigurationDegradedStatus(ctx context.Context) v1helpers.UpdateStatusFunc {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "webhook.updateValidatingAdmissionWebhookConfigurationDegradedStatus", trace.WithAttributes(
+		attribute.String("name", c.Name()),
+	))
+	defer span.End()
 	condition := operatorv1.OperatorCondition{
 		Type:   ValidatingAdmissionWebhookConfigurationErrorType,
 		Status: operatorv1.ConditionUnknown,
 	}
-	webhookConfigurations, err := c.validatingWebhookLister.List(labels.Everything())
+	webhookConfigurations, err := c.validatingWebhookLister.List(ctx, labels.Everything())
 	if err != nil {
 		condition.Message = err.Error()
 		return v1helpers.UpdateConditionFn(condition)

@@ -1,6 +1,7 @@
 package etcdendpoints
 
 import (
+	"context"
 	"encoding/base64"
 	"reflect"
 	"testing"
@@ -63,7 +64,7 @@ func TestObserveStorageURLs(t *testing.T) {
 					t.Fatalf("error adding endpoint to store: %#v", err)
 				}
 			}
-			actual, errs := ObserveStorageURLs(lister, events.NewInMemoryRecorder("test", clock.RealClock{}), tt.currentConfig)
+			actual, errs := ObserveStorageURLs(t.Context(), lister, events.NewInMemoryRecorder("test", clock.RealClock{}), tt.currentConfig)
 			if tt.expectErrors && len(errs) == 0 {
 				t.Errorf("errors expected")
 			}
@@ -153,7 +154,7 @@ func withAddress(ip string) func(*v1.ConfigMap) {
 }
 
 func fallback(observed map[string]interface{}, errs ...error) configobserver.ObserveConfigFunc {
-	return func(genericListers configobserver.Listers, recorder events.Recorder, currentConfig map[string]interface{}) (map[string]interface{}, []error) {
+	return func(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, currentConfig map[string]interface{}) (map[string]interface{}, []error) {
 		return observed, errs
 	}
 }

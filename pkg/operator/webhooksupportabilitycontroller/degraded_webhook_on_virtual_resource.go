@@ -8,17 +8,26 @@ import (
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func (c *webhookSupportabilityController) updateVirtualResourceAdmissionDegraded(ctx context.Context) v1helpers.UpdateStatusFunc {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "webhook.updateVirtualResourceAdmissionDegraded", trace.WithAttributes(
+		attribute.String("name", c.Name()),
+	))
+	defer span.End()
+
 	condition := operatorv1.OperatorCondition{
 		Type:   VirtualResourceAdmissionErrorType,
 		Status: operatorv1.ConditionUnknown,
 	}
-	mutatingWebhookConfigurations, err := c.mutatingWebhookLister.List(labels.Everything())
+	mutatingWebhookConfigurations, err := c.mutatingWebhookLister.List(ctx, labels.Everything())
 	if err != nil {
 		condition.Message = err.Error()
 		return v1helpers.UpdateConditionFn(condition)
@@ -42,7 +51,7 @@ func (c *webhookSupportabilityController) updateVirtualResourceAdmissionDegraded
 			}
 		}
 	}
-	validatingWebhookConfigurations, err := c.validatingWebhookLister.List(labels.Everything())
+	validatingWebhookConfigurations, err := c.validatingWebhookLister.List(ctx, labels.Everything())
 	if err != nil {
 		condition.Message = err.Error()
 		return v1helpers.UpdateConditionFn(condition)

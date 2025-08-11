@@ -1,6 +1,7 @@
 package apienablement
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -71,7 +72,7 @@ func NewFeatureGateObserverWithRuntimeConfig(featureWhitelist sets.Set[configv1.
 }
 
 func newFeatureGateObserverWithRuntimeConfig(featureGateObserver configobserver.ObserveConfigFunc, featureGateAccessor featuregates.FeatureGateAccess, groupVersionsByFeatureGate map[configv1.FeatureGateName][]schema.GroupVersion) configobserver.ObserveConfigFunc {
-	return func(listers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (observedConfig map[string]interface{}, errs []error) {
+	return func(ctx context.Context, listers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (observedConfig map[string]interface{}, errs []error) {
 		defer func() {
 			observedConfig = configobserver.Pruned(observedConfig, featureGatesPath, runtimeConfigPath)
 		}()
@@ -85,7 +86,7 @@ func newFeatureGateObserverWithRuntimeConfig(featureGateObserver configobserver.
 			return existingConfig, []error{err}
 		}
 
-		observedConfig, errs = featureGateObserver(listers, recorder, existingConfig)
+		observedConfig, errs = featureGateObserver(ctx, listers, recorder, existingConfig)
 
 		runtimeConfig := RuntimeConfigFromFeatureGates(featureGates, groupVersionsByFeatureGate)
 		if len(runtimeConfig) == 0 {

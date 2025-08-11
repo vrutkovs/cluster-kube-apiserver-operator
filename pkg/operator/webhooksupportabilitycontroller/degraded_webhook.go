@@ -12,6 +12,9 @@ import (
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 )
@@ -47,18 +50,28 @@ type serviceReference struct {
 // checking that the services associated with the specified webhooks exist
 // and have at least one ready endpoint.
 func (c *webhookSupportabilityController) updateWebhookConfigurationDegraded(ctx context.Context, condition operatorv1.OperatorCondition, webhookInfos []webhookInfo) v1helpers.UpdateStatusFunc {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "webhook.updateWebhookConfigurationDegraded")
+	defer span.End()
+
 	var serviceMsgs []string
 	var tlsMsgs []string
 	for _, webhook := range webhookInfos {
 		if webhook.Service != nil {
-			err := c.assertService(webhook.Service)
+			ctx, subSpan := tracer.Start(ctx, "webhook.webhookTest", trace.WithAttributes(
+				attribute.String("name", webhook.Name),
+			))
+
+			err := c.assertService(ctx, webhook.Service)
 			if err != nil {
 				msg := fmt.Sprintf("%s: %s", webhook.Name, err)
 				if webhook.FailurePolicyIsIgnore {
 					klog.Error(msg)
+					subSpan.End()
 					continue
 				}
 				serviceMsgs = append(serviceMsgs, msg)
+				subSpan.End()
 				continue
 			}
 			err = c.assertConnect(ctx, webhook.Name, webhook.Service, webhook.CABundle, webhook.HasServiceCaAnnotation, webhook.TimeoutSeconds)
@@ -66,11 +79,14 @@ func (c *webhookSupportabilityController) updateWebhookConfigurationDegraded(ctx
 				msg := fmt.Sprintf("%s: %s", webhook.Name, err)
 				if webhook.FailurePolicyIsIgnore {
 					klog.Error(msg)
+					subSpan.End()
 					continue
 				}
 				tlsMsgs = append(tlsMsgs, msg)
+				subSpan.End()
 				continue
 			}
+			subSpan.End()
 		}
 	}
 
@@ -97,8 +113,8 @@ func (c *webhookSupportabilityController) updateWebhookConfigurationDegraded(ctx
 }
 
 // assertService checks that the referenced service resource exists.
-func (c *webhookSupportabilityController) assertService(reference *serviceReference) error {
-	_, err := c.serviceLister.Services(reference.Namespace).Get(reference.Name)
+func (c *webhookSupportabilityController) assertService(ctx context.Context, reference *serviceReference) error {
+	_, err := c.serviceLister.Services(reference.Namespace).Get(ctx, reference.Name)
 	if err != nil {
 		return fmt.Errorf("unable to find service %s.%s: %v", reference.Name, reference.Namespace, err)
 	}

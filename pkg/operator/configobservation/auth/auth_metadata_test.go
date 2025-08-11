@@ -313,7 +313,7 @@ func TestObserveAuthMetadata(t *testing.T) {
 				ResourceSync:     &mockResourceSyncer{t: t, synced: synced, error: tt.syncerError},
 			}
 
-			actualConfig, errs := ObserveAuthMetadata(listers, eventRecorder, tt.existingConfig)
+			actualConfig, errs := ObserveAuthMetadata(t.Context(), listers, eventRecorder, tt.existingConfig)
 
 			if tt.expectErrors != (len(errs) > 0) {
 				t.Errorf("expected errors: %v; got %v", tt.expectErrors, errs)

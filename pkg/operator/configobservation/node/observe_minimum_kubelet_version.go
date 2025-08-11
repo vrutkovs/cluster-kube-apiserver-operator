@@ -1,6 +1,8 @@
 package node
 
 import (
+	"context"
+
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/api/features"
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/configobservation"
@@ -28,7 +30,7 @@ func NewMinimumKubeletVersionObserver(featureGateAccessor featuregates.FeatureGa
 }
 
 // ObserveKubeletMinimumVersion watches the node configuration and generates the minimumKubeletVersion
-func (o *minimumKubeletVersionObserver) ObserveMinimumKubeletVersion(genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func (o *minimumKubeletVersionObserver) ObserveMinimumKubeletVersion(ctx context.Context, genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	defer func() {
 		// Prune the observed config so that it only contains minimumKubeletVersion field.
 		ret = configobserver.Pruned(ret, []string{minimumKubeletVersionConfigPath})
@@ -48,7 +50,7 @@ func (o *minimumKubeletVersionObserver) ObserveMinimumKubeletVersion(genericList
 	}
 
 	nodeLister := genericListers.(configobservation.Listers)
-	configNode, err := nodeLister.NodeLister().Get("cluster")
+	configNode, err := nodeLister.NodeLister().Get(ctx, "cluster")
 	// we got an error so without the node object we are not able to determine minimumKubeletVersion
 	if err != nil {
 		// if config/v1/node/cluster object is not found, that can be treated as a non-error case, but raise a warning

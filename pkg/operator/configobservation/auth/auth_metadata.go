@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,7 +29,7 @@ var (
 
 // ObserveAuthMetadata fills in authConfig.OauthMetadataFile with the path for a configMap referenced by the authentication
 // config.
-func ObserveAuthMetadata(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
+func ObserveAuthMetadata(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
 	defer func() {
 		ret = configobserver.Pruned(ret, topLevelMetadataFilePath)
 	}()
@@ -47,7 +49,7 @@ func ObserveAuthMetadata(genericListers configobserver.Listers, recorder events.
 	}
 
 	observedConfig := map[string]interface{}{}
-	authConfig, err := listers.AuthConfigLister.Get("cluster")
+	authConfig, err := listers.AuthConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		recorder.Eventf("ObserveAuthMetadataConfigMap", "authentications.config.openshift.io/cluster: not found")
 		klog.Warningf("authentications.config.openshift.io/cluster: not found")
@@ -88,7 +90,7 @@ func ObserveAuthMetadata(genericListers configobserver.Listers, recorder events.
 		// in order to delete the configmap and unset oauthMetadataFile
 
 	case configv1.AuthenticationTypeOIDC:
-		if _, err := listers.ConfigmapLister_.ConfigMaps(operatorclient.TargetNamespace).Get(AuthConfigCMName); errors.IsNotFound(err) {
+		if _, err := listers.ConfigmapLister_.ConfigMaps(operatorclient.TargetNamespace).Get(ctx, AuthConfigCMName); errors.IsNotFound(err) {
 			// auth-config does not exist in target namespace yet; do not remove oauth metadata until it's there
 			return prevObservedConfig, errs
 		} else if err != nil {

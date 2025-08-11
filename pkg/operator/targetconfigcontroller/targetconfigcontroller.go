@@ -40,6 +40,10 @@ import (
 	coreclientv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -82,7 +86,7 @@ func NewTargetConfigController(
 		requireMultipleEtcdEndpointsFn: requireMultipleEtcdEndpointsFn,
 	}
 
-	return factory.New().WithInformers(
+	return factory.New().WithInformersQueueKeyFunc(v1helpers.ObjToString,
 		operatorClient.Informer(),
 		kubeInformersForOpenshiftKubeAPIServerNamespace.Core().V1().ConfigMaps().Informer(),
 		kubeInformersForOpenshiftKubeAPIServerNamespace.Core().V1().Secrets().Informer(),
@@ -95,7 +99,13 @@ func NewTargetConfigController(
 }
 
 func (c TargetConfigController) sync(ctx context.Context, syncContext factory.SyncContext) error {
-	operatorSpec, _, _, err := c.operatorClient.GetStaticPodOperatorState()
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.TargetConfigController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncContext.QueueKey()),
+	))
+	defer span.End()
+
+	operatorSpec, _, _, err := c.operatorClient.GetStaticPodOperatorState(ctx)
 	if err != nil {
 		return err
 	}
@@ -114,7 +124,7 @@ func (c TargetConfigController) sync(ctx context.Context, syncContext factory.Sy
 
 	// block until config is observed and specific paths are present
 	requireMultipleEtcdEndpoints := c.requireMultipleEtcdEndpointsFn()
-	if err := c.isRequiredConfigPresent(operatorSpec.ObservedConfig.Raw, requireMultipleEtcdEndpoints); err != nil {
+	if err := c.isRequiredConfigPresent(ctx, operatorSpec.ObservedConfig.Raw, requireMultipleEtcdEndpoints); err != nil {
 		syncContext.Recorder().Warning("ConfigMissing", err.Error())
 		return err
 	}
@@ -130,7 +140,7 @@ func (c TargetConfigController) sync(ctx context.Context, syncContext factory.Sy
 	return nil
 }
 
-func (c *TargetConfigController) isRequiredConfigPresent(config []byte, requireMultipleEtcdEndpoints bool) error {
+func (c *TargetConfigController) isRequiredConfigPresent(ctx context.Context, config []byte, requireMultipleEtcdEndpoints bool) error {
 	if len(config) == 0 {
 		return fmt.Errorf("no observedConfig")
 	}
@@ -169,7 +179,7 @@ func (c *TargetConfigController) isRequiredConfigPresent(config []byte, requireM
 				return fmt.Errorf("%v is not a slice", strings.Join(requiredPath, "."))
 			}
 
-			if err := etcdEndpointsPresent(c.configMapLister, configValSlice, requiredPath); err != nil {
+			if err := etcdEndpointsPresent(ctx, c.configMapLister, configValSlice, requiredPath); err != nil {
 				return err
 			}
 		}
@@ -182,8 +192,8 @@ func (c *TargetConfigController) isRequiredConfigPresent(config []byte, requireM
 // less than two etcd live endpoints (not localhost and bootstrap) are present
 // in the config, it returns an error because the configuration does not
 // statisfy HA requirements.
-func etcdEndpointsPresent(configMapLister corev1listers.ConfigMapLister, config []interface{}, configPath []string) error {
-	etcdEndpointsCM, err := configMapLister.ConfigMaps(etcdEndpointNamespace).Get(etcdEndpointName)
+func etcdEndpointsPresent(ctx context.Context, configMapLister corev1listers.ConfigMapLister, config []interface{}, configPath []string) error {
+	etcdEndpointsCM, err := configMapLister.ConfigMaps(etcdEndpointNamespace).Get(ctx, etcdEndpointName)
 	if err != nil {
 		return err
 	}
@@ -364,7 +374,7 @@ func ManageClientCABundle(ctx context.Context, lister corev1listers.ConfigMapLis
 	creationRequired := false
 	updateRequired := false
 
-	caBundleConfigMap, err := lister.ConfigMaps(operatorclient.TargetNamespace).Get(caBundleConfigMapName)
+	caBundleConfigMap, err := lister.ConfigMaps(operatorclient.TargetNamespace).Get(ctx, caBundleConfigMapName)
 	switch {
 	case apierrors.IsNotFound(err):
 		creationRequired = true
@@ -379,6 +389,7 @@ func ManageClientCABundle(ctx context.Context, lister corev1listers.ConfigMapLis
 	}
 
 	requiredConfigMap, updateRequired, err := resourcesynccontroller.CombineCABundleConfigMapsOptimistically(
+		ctx,
 		caBundleConfigMap,
 		lister,
 		additionalAnnotations,
@@ -433,7 +444,7 @@ func manageKubeAPIServerCABundle(ctx context.Context, lister corev1listers.Confi
 	creationRequired := false
 	updateRequired := false
 
-	caBundleConfigMap, err := lister.ConfigMaps(operatorclient.TargetNamespace).Get(caBundleConfigMapName)
+	caBundleConfigMap, err := lister.ConfigMaps(operatorclient.TargetNamespace).Get(ctx, caBundleConfigMapName)
 	switch {
 	case apierrors.IsNotFound(err):
 		creationRequired = true
@@ -448,6 +459,7 @@ func manageKubeAPIServerCABundle(ctx context.Context, lister corev1listers.Confi
 	}
 
 	requiredConfigMap, updateRequired, err := resourcesynccontroller.CombineCABundleConfigMapsOptimistically(
+		ctx,
 		caBundleConfigMap,
 		lister,
 		additionalAnnotations,

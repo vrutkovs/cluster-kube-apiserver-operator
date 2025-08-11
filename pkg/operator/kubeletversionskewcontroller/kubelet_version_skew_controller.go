@@ -19,6 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	cache "k8s.io/client-go/tools/cache"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -62,7 +66,7 @@ func NewKubeletVersionSkewController(
 	}
 	c.Controller = factory.New().
 		WithSync(c.sync).
-		WithInformers(nodeInformer).
+		WithInformersQueueKeyFunc(v1helpers.ObjToString, nodeInformer).
 		ToController("KubeletVersionSkewController", recorder.WithComponentSuffix("kubelet-version-skew-controller"))
 	return c
 }
@@ -87,16 +91,22 @@ type kubeletVersionSkewController struct {
 	minSupportedSkewNextVersion int
 }
 
-func (c *kubeletVersionSkewController) sync(ctx context.Context, _ factory.SyncContext) error {
-	operatorSpec, _, _, err := c.operatorClient.GetOperatorState()
+func (c *kubeletVersionSkewController) sync(ctx context.Context, syncContext factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.KubeletVersionSkewController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", syncContext.QueueKey()),
+	))
+	defer span.End()
+
+	operatorSpec, _, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return err
 	}
-	if !management.IsOperatorManaged(operatorSpec.ManagementState) {
+	if !management.IsOperatorManaged(ctx, operatorSpec.ManagementState) {
 		return nil
 	}
 
-	nodes, err := c.nodeLister.List(labels.Everything())
+	nodes, err := c.nodeLister.List(ctx, labels.Everything())
 	if err != nil {
 		return err
 	}

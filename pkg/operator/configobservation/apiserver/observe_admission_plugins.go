@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
@@ -13,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-type pluginCheckerFunc func(listers configobservation.Listers) (enabled, disabled []string, err error)
+type pluginCheckerFunc func(ctx context.Context, listers configobservation.Listers) (enabled, disabled []string, err error)
 
 var (
 	enableAdmissionPluginsPath  = []string{"apiServerArguments", "enable-admission-plugins"}
@@ -28,7 +29,7 @@ var (
 // apiServerArguments.disable-admission-plugins fields of the configuration. It defines a list of
 // plugin checkers which check the state of specific plugins, and add them to the enabled or disabled
 // list as required. This observer will overwrite any pre-existing values of the two fields in the existingConfig.
-func ObserveAdmissionPlugins(genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]any) (ret map[string]any, _ []error) {
+func ObserveAdmissionPlugins(ctx context.Context, genericListers configobserver.Listers, recorder events.Recorder, existingConfig map[string]any) (ret map[string]any, _ []error) {
 	defer func() {
 		ret = configobserver.Pruned(ret, enableAdmissionPluginsPath, disableAdmissionPluginsPath)
 	}()
@@ -42,7 +43,7 @@ func ObserveAdmissionPlugins(genericListers configobserver.Listers, recorder eve
 	disabledSet := sets.New[string]()
 
 	for _, pluginChecker := range pluginCheckers {
-		enabled, disabled, err := pluginChecker(listers)
+		enabled, disabled, err := pluginChecker(ctx, listers)
 		if err != nil {
 			return existingConfig, []error{err}
 		}
@@ -76,8 +77,8 @@ func ObserveAdmissionPlugins(genericListers configobserver.Listers, recorder eve
 	return observedConfig, nil
 }
 
-func roleBindingRestrictionPluginChecker(listers configobservation.Listers) (enabled, disabled []string, err error) {
-	auth, err := listers.AuthConfigLister.Get("cluster")
+func roleBindingRestrictionPluginChecker(ctx context.Context, listers configobservation.Listers) (enabled, disabled []string, err error) {
+	auth, err := listers.AuthConfigLister.Get(ctx, "cluster")
 	if err != nil {
 		return
 	}

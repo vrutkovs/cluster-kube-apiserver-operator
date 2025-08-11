@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,7 +17,7 @@ import (
 var goawayChancePath = []string{"apiServerArguments", "goaway-chance"}
 
 // ObserveGoawayChance ensures that goaway-chance is 0 for SNO topology
-func ObserveGoawayChance(genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveGoawayChance(ctx context.Context, genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	defer func() {
 		// Prune the observed config so that it only contains apiServerArguments field.
 		ret = configobserver.Pruned(ret, goawayChancePath)
@@ -24,7 +25,7 @@ func ObserveGoawayChance(genericListers configobserver.Listers, _ events.Recorde
 
 	// read the observed value
 	listers := genericListers.(configobservation.Listers)
-	infra, err := listers.InfrastructureLister().Get("cluster")
+	infra, err := listers.InfrastructureLister().Get(ctx, "cluster")
 	if err != nil {
 		// we got an error so without the infrastructure object we are not able to determine the type of platform we are running on
 		if apierrors.IsNotFound(err) {

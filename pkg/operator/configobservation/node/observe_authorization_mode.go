@@ -1,6 +1,8 @@
 package node
 
 import (
+	"context"
+
 	"github.com/openshift/api/features"
 	"github.com/openshift/library-go/pkg/operator/configobserver"
 	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
@@ -43,7 +45,7 @@ func NewAuthorizationModeObserver(featureGateAccessor featuregates.FeatureGateAc
 
 // ObserveAuthorizationMode watches the featuregate configuration and generates the apiServerArguments.authorization-mode
 // It currently hardcodes the default set and adds MinimumKubeletVersion if the feature is set to on.
-func (o *authorizationModeObserver) ObserveAuthorizationMode(genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func (o *authorizationModeObserver) ObserveAuthorizationMode(ctx context.Context, genericListers configobserver.Listers, _ events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	defer func() {
 		// Prune the observed config so that it only contains minimumKubeletVersion field.
 		ret = configobserver.Pruned(ret, authModePath)

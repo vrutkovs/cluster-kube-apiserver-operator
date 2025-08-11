@@ -1,6 +1,8 @@
 package configmetrics
 
 import (
+	"context"
+
 	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/component-base/metrics/legacyregistry"
@@ -79,7 +81,7 @@ func getExternalPlatformName(infra *configv1.Infrastructure) string {
 
 // Collect calculates metrics from the cached config and reports them to the prometheus collector.
 func (m *configMetrics) Collect(ch chan<- prometheus.Metric) {
-	if infra, err := m.infrastructureLister.Get("cluster"); err == nil {
+	if infra, err := m.infrastructureLister.Get(context.Background(), "cluster"); err == nil {
 		if status := infra.Status.PlatformStatus; status != nil {
 			var g prometheus.Gauge
 			var value float64 = 1
@@ -114,13 +116,13 @@ func (m *configMetrics) Collect(ch chan<- prometheus.Metric) {
 			ch <- g
 		}
 	}
-	if features, err := m.featuregateLister.Get("cluster"); err == nil {
+	if features, err := m.featuregateLister.Get(context.Background(), "cluster"); err == nil {
 		ch <- booleanGaugeValue(
 			m.featureSet.WithLabelValues(string(features.Spec.FeatureSet)),
 			features.Spec.FeatureSet == configv1.Default,
 		)
 	}
-	if proxy, err := m.proxyLister.Get("cluster"); err == nil {
+	if proxy, err := m.proxyLister.Get(context.Background(), "cluster"); err == nil {
 		ch <- booleanGaugeValue(m.proxyEnablement.WithLabelValues("http"), len(proxy.Spec.HTTPProxy) > 0)
 		ch <- booleanGaugeValue(m.proxyEnablement.WithLabelValues("https"), len(proxy.Spec.HTTPSProxy) > 0)
 		ch <- booleanGaugeValue(m.proxyEnablement.WithLabelValues("trusted_ca"), len(proxy.Spec.TrustedCA.Name) > 0)

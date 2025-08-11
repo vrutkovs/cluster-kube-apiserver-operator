@@ -143,7 +143,7 @@ func TestObserveImageConfig(t *testing.T) {
 
 			initialExistingConfig := map[string]interface{}{}
 
-			observed, errs := ObserveInternalRegistryHostname(listers, eventRecorder, initialExistingConfig)
+			observed, errs := ObserveInternalRegistryHostname(t.Context(), listers, eventRecorder, initialExistingConfig)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected error: %v", errs)
 			}
@@ -154,7 +154,7 @@ func TestObserveImageConfig(t *testing.T) {
 			if internalRegistryHostname != tc.expectedInternalRegistryHostname {
 				t.Errorf("expected internal registry hostname: %s, got %s", tc.expectedInternalRegistryHostname, internalRegistryHostname)
 			}
-			secondTimeObserved, errs := ObserveInternalRegistryHostname(listers, eventRecorder, observed)
+			secondTimeObserved, errs := ObserveInternalRegistryHostname(t.Context(), listers, eventRecorder, observed)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected error: %v", errs)
 			}
@@ -162,7 +162,7 @@ func TestObserveImageConfig(t *testing.T) {
 				t.Errorf("unexpected change after second observation: got: \n%#v\nexpected: \n%#v", secondTimeObserved, observed)
 			}
 
-			observed, errs = ObserveExternalRegistryHostnames(listers, eventRecorder, initialExistingConfig)
+			observed, errs = ObserveExternalRegistryHostnames(t.Context(), listers, eventRecorder, initialExistingConfig)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected error: %v", errs)
 			}
@@ -178,7 +178,7 @@ func TestObserveImageConfig(t *testing.T) {
 			if !reflect.DeepEqual(externalRegistryHostnames, tc.expectedExternalRegistryHostnames) {
 				t.Errorf("got: \n%#v\nexpected: \n%#v", externalRegistryHostnames, tc.expectedExternalRegistryHostnames)
 			}
-			secondTimeObserved, errs = ObserveExternalRegistryHostnames(listers, eventRecorder, observed)
+			secondTimeObserved, errs = ObserveExternalRegistryHostnames(t.Context(), listers, eventRecorder, observed)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected error: %v", errs)
 			}
@@ -186,7 +186,7 @@ func TestObserveImageConfig(t *testing.T) {
 				t.Errorf("unexpected change after second observation: got: \n%#v\nexpected: \n%#v", secondTimeObserved, observed)
 			}
 
-			observed, errs = ObserveAllowedRegistriesForImport(listers, eventRecorder, initialExistingConfig)
+			observed, errs = ObserveAllowedRegistriesForImport(t.Context(), listers, eventRecorder, initialExistingConfig)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected error: %v", errs)
 			}
@@ -202,7 +202,7 @@ func TestObserveImageConfig(t *testing.T) {
 			if !reflect.DeepEqual(allowedRegistries, tc.expectedAllowedRegistries) {
 				t.Errorf("got: \n%#v\nexpected: \n%#v", allowedRegistries, tc.expectedAllowedRegistries)
 			}
-			secondTimeObserved, errs = ObserveAllowedRegistriesForImport(listers, eventRecorder, observed)
+			secondTimeObserved, errs = ObserveAllowedRegistriesForImport(t.Context(), listers, eventRecorder, observed)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected error: %v", errs)
 			}

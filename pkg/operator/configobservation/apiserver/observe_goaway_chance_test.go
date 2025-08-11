@@ -128,7 +128,7 @@ func TestObserveGoawayChance(t *testing.T) {
 			}
 
 			// act
-			observedKubeAPIConfig, err := ObserveGoawayChance(listers, eventRecorder, scenario.existingKubeAPIConfig)
+			observedKubeAPIConfig, err := ObserveGoawayChance(t.Context(), listers, eventRecorder, scenario.existingKubeAPIConfig)
 
 			// validate
 			if len(err) > 0 {
@@ -177,7 +177,7 @@ func TestObserveGoawayChanceErrors(t *testing.T) {
 			}
 
 			// act
-			_, errs := ObserveGoawayChance(listers, eventRecorder, map[string]interface{}{})
+			_, errs := ObserveGoawayChance(t.Context(), listers, eventRecorder, map[string]interface{}{})
 
 			// validate
 			if diff := cmp.Diff(scenario.expectedErrs, errs); diff != "" {

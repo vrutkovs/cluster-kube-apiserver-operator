@@ -23,7 +23,6 @@ import (
 	"github.com/openshift/cluster-kube-apiserver-operator/bindata"
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/boundsatokensignercontroller"
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/certrotationcontroller"
-	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/certrotationtimeupgradeablecontroller"
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/configmetrics"
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/configobservation/apienablement"
 	"github.com/openshift/cluster-kube-apiserver-operator/pkg/operator/configobservation/auth"
@@ -310,7 +309,7 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 		kubeInformersForNamespaces.InformersFor(operatorclient.TargetNamespace),
 		kubeInformersForNamespaces,
 		kubeClient,
-		startupmonitorreadiness.IsStartupMonitorEnabledFunction(configInformers.Config().V1().Infrastructures().Lister(), operatorClient),
+		startupmonitorreadiness.IsStartupMonitorEnabledFunction(ctx, configInformers.Config().V1().Infrastructures().Lister(), operatorClient),
 		requireMultipleEtcdEndpoints,
 		controllerContext.EventRecorder,
 	)
@@ -347,7 +346,7 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 	}
 	versionRecorder.SetVersion("raw-internal", status.VersionForOperatorFromEnv())
 
-	staticPodControllers, err := staticpod.NewBuilder(operatorClient, kubeClient, kubeInformersForNamespaces, clusterInformers.InformersFor(""), configInformers, controllerContext.Clock).
+	staticPodControllers, err := staticpod.NewBuilder(operatorClient, kubeClient, kubeInformersForNamespaces, clusterInformers.InformersFor(""), configInformers, controllerContext.Clock, tp).
 		WithEvents(controllerContext.EventRecorder).
 		WithCustomInstaller([]string{"cluster-kube-apiserver-operator", "installer"}, installerErrorInjector(operatorClient)).
 		WithPruning([]string{"cluster-kube-apiserver-operator", "prune"}, "kube-apiserver-pod").
@@ -355,7 +354,7 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 		WithUnrevisionedCerts("kube-apiserver-certs", CertConfigMaps, CertSecrets).
 		WithVersioning("kube-apiserver", versionRecorder).
 		WithMinReadyDuration(30*time.Second).
-		WithStartupMonitor(startupmonitorreadiness.IsStartupMonitorEnabledFunction(configInformers.Config().V1().Infrastructures().Lister(), operatorClient)).
+		WithStartupMonitor(startupmonitorreadiness.IsStartupMonitorEnabledFunction(ctx, configInformers.Config().V1().Infrastructures().Lister(), operatorClient)).
 		WithPodDisruptionBudgetGuard(
 			"openshift-kube-apiserver-operator",
 			"cluster-kube-apiserver-operator",
@@ -441,16 +440,10 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 		return err
 	}
 
-	certRotationTimeUpgradeableController := certrotationtimeupgradeablecontroller.NewCertRotationTimeUpgradeableController(
-		operatorClient,
-		kubeInformersForNamespaces.InformersFor(operatorclient.GlobalUserSpecifiedConfigNamespace).Core().V1().ConfigMaps(),
-		controllerContext.EventRecorder.WithComponentSuffix("cert-rotation-controller"),
-	)
-
 	terminationObserver := terminationobserver.NewTerminationObserver(
 		operatorclient.TargetNamespace,
 		kubeInformersForNamespaces.InformersFor(operatorclient.TargetNamespace),
-		kubeClient.CoreV1(),
+		kubeInformersForNamespaces.PodLister().Pods(operatorclient.TargetNamespace),
 		controllerContext.EventRecorder,
 	)
 
@@ -469,6 +462,7 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 		kubeClient,
 		configInformers,
 		kubeInformersForNamespaces.InformersFor(operatorclient.TargetNamespace),
+		kubeInformersForNamespaces.ConfigMapLister().ConfigMaps(operatorclient.TargetNamespace),
 		controllerContext.EventRecorder,
 	)
 
@@ -557,7 +551,6 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 	go clusterOperatorStatus.Run(ctx, 1)
 	go certRotationController.Run(ctx, 1)
 	go encryptionControllers.Run(ctx, 1)
-	go certRotationTimeUpgradeableController.Run(ctx, 1)
 	go terminationObserver.Run(ctx, 1)
 	go eventWatcher.Run(ctx, 1)
 	go boundSATokenSignerController.Run(ctx, 1)
@@ -579,10 +572,10 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 // installerErrorInjector mutates the given installer pod to fail or OOM depending on the propability (
 // - 0 <= unsupportedConfigOverrides.installerErrorInjection.failPropability <= 1.0: fail the pod (crash loop)
 // - 0 <= unsupportedConfigOverrides.installerErrorInjection.oomPropability <= 1.0: cause OOM due to 1 MB memory limits
-func installerErrorInjector(operatorClient v1helpers.StaticPodOperatorClient) func(pod *corev1.Pod, nodeName string, operatorSpec *operatorv1.StaticPodOperatorSpec, revision int32) error {
-	return func(pod *corev1.Pod, nodeName string, operatorSpec *operatorv1.StaticPodOperatorSpec, revision int32) error {
+func installerErrorInjector(operatorClient v1helpers.StaticPodOperatorClient) func(ctx context.Context, pod *corev1.Pod, nodeName string, operatorSpec *operatorv1.StaticPodOperatorSpec, revision int32) error {
+	return func(ctx context.Context, pod *corev1.Pod, nodeName string, operatorSpec *operatorv1.StaticPodOperatorSpec, revision int32) error {
 		// get UnsupportedConfigOverrides
-		spec, _, _, err := operatorClient.GetOperatorState()
+		spec, _, _, err := operatorClient.GetOperatorState(ctx)
 		if err != nil {
 			klog.Warningf("failed to get operator/v1 spec for error injection: %v", err)
 			return nil // ignore error

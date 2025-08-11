@@ -32,7 +32,7 @@ type configMapLister struct {
 var _ corev1listers.ConfigMapNamespaceLister = &configMapLister{}
 var _ corev1listers.ConfigMapLister = &configMapLister{}
 
-func (l *configMapLister) List(selector labels.Selector) (ret []*corev1.ConfigMap, err error) {
+func (l *configMapLister) List(ctx context.Context, selector labels.Selector) (ret []*corev1.ConfigMap, err error) {
 	list, err := l.client.CoreV1().ConfigMaps(l.namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -52,8 +52,8 @@ func (l *configMapLister) ConfigMaps(namespace string) corev1listers.ConfigMapNa
 	}
 }
 
-func (l *configMapLister) Get(name string) (*corev1.ConfigMap, error) {
-	return l.client.CoreV1().ConfigMaps(l.namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (l *configMapLister) Get(ctx context.Context, name string) (*corev1.ConfigMap, error) {
+	return l.client.CoreV1().ConfigMaps(l.namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 type secretLister struct {
@@ -64,7 +64,7 @@ type secretLister struct {
 var _ corev1listers.SecretNamespaceLister = &secretLister{}
 var _ corev1listers.SecretLister = &secretLister{}
 
-func (l *secretLister) List(selector labels.Selector) (ret []*corev1.Secret, err error) {
+func (l *secretLister) List(ctx context.Context, selector labels.Selector) (ret []*corev1.Secret, err error) {
 	list, err := l.client.CoreV1().Secrets(l.namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -84,8 +84,8 @@ func (l *secretLister) Secrets(namespace string) corev1listers.SecretNamespaceLi
 	}
 }
 
-func (l *secretLister) Get(name string) (*corev1.Secret, error) {
-	return l.client.CoreV1().Secrets(l.namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (l *secretLister) Get(ctx context.Context, name string) (*corev1.Secret, error) {
+	return l.client.CoreV1().Secrets(l.namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 const privateKey = "fake private key" // notsecret

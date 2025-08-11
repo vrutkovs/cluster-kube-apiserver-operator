@@ -3,9 +3,13 @@ package serviceaccountissuercontroller
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	configinformers "github.com/openshift/client-go/config/informers/externalversions"
@@ -15,6 +19,7 @@ import (
 	operatorlistersv1 "github.com/openshift/client-go/operator/listers/operator/v1"
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
+	"github.com/openshift/library-go/pkg/operator/v1helpers"
 )
 
 const (
@@ -52,20 +57,26 @@ func NewController(kubeAPIServerOperatorClient operatorv1client.KubeAPIServerInt
 		authLister:                  configInformer.Config().V1().Authentications().Lister(),
 		kubeAPIserverOperatorLister: operatorInformers.Operator().V1().KubeAPIServers().Lister(),
 	}
-	return factory.New().WithInformers(
+	return factory.New().WithInformersQueueKeyFunc(v1helpers.ObjToString,
 		operatorInformers.Operator().V1().KubeAPIServers().Informer(),
 		configInformer.Config().V1().Authentications().Informer(),
 	).ResyncEvery(60*time.Second).WithSync(ret.sync).ToController("ServiceAccountIssuerController", eventRecorder)
 }
 
 func (c *ServiceAccountIssuerController) sync(ctx context.Context, controllerContext factory.SyncContext) error {
-	authConfig, err := c.authLister.Get("cluster")
+	tracer := otel.GetTracerProvider().Tracer("library-go")
+	ctx, span := tracer.Start(ctx, "ckao.ServiceAccountIssuerController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", controllerContext.QueueKey()),
+	))
+	defer span.End()
+
+	authConfig, err := c.authLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
 	authConfigIssuer := authConfig.Spec.ServiceAccountIssuer
 
-	operator, err := c.kubeAPIserverOperatorLister.Get("cluster")
+	operator, err := c.kubeAPIserverOperatorLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -111,11 +112,12 @@ func TestObservedConfig(t *testing.T) {
 			testRecorder := events.NewInMemoryRecorder("SAIssuerTest", clock.RealClock{})
 
 			newConfig, errs := observedConfig(
+				t.Context(),
 				unstructuredAPIConfigForIssuer(t, tc.existingIssuer, tc.trustedIssuers),
-				func(_ string) (*operatorv1.KubeAPIServer, error) {
+				func(ctx context.Context, _ string) (*operatorv1.KubeAPIServer, error) {
 					return kasStatusForIssuer(tc.issuer, tc.trustedIssuers...), tc.authError
 				},
-				func(_ string) (*configv1.Infrastructure, error) {
+				func(ctx context.Context, _ string) (*configv1.Infrastructure, error) {
 					return &configv1.Infrastructure{
 						Status: configv1.InfrastructureStatus{
 							APIServerURL: "https://lb.example.com",

@@ -1,6 +1,7 @@
 package apienablement
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func staticObserver(cfg map[string]interface{}, errs []error) configobserver.ObserveConfigFunc {
-	return func(configobserver.Listers, events.Recorder, map[string]interface{}) (map[string]interface{}, []error) {
+	return func(context.Context, configobserver.Listers, events.Recorder, map[string]interface{}) (map[string]interface{}, []error) {
 		return cfg, errs
 	}
 }
@@ -157,7 +158,8 @@ func TestFeatureGateObserverWithRuntimeConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, errs := newFeatureGateObserverWithRuntimeConfig(tc.delegatedObserver, tc.featureGates, tc.groupVersionsByFeatureGate)(nil, nil, tc.existingConfig)
+			ctx := context.Background()
+			actual, errs := newFeatureGateObserverWithRuntimeConfig(tc.delegatedObserver, tc.featureGates, tc.groupVersionsByFeatureGate)(ctx, nil, nil, tc.existingConfig)
 			if diff := cmp.Diff(tc.expectedConfig, actual); diff != "" {
 				t.Errorf("unexpected config:\n%s", diff)
 			}

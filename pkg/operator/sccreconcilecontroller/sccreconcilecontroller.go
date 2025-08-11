@@ -10,6 +10,10 @@ import (
 	"github.com/openshift/library-go/pkg/operator/events"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type sccReconcileController struct {
@@ -57,8 +61,14 @@ func NewSCCReconcileController(
 }
 
 func (c *sccReconcileController) sync(ctx context.Context, controllerContext factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("ckao")
+	ctx, span := tracer.Start(ctx, "ckao.sccReconcileController", trace.WithAttributes(
+		attribute.String("aaaQueueKey", controllerContext.QueueKey()),
+	))
+	defer span.End()
+
 	sccName := controllerContext.QueueKey()
-	scc, err := c.sccLister.Get(sccName)
+	scc, err := c.sccLister.Get(ctx, sccName)
 	if err != nil {
 		return err
 	}
