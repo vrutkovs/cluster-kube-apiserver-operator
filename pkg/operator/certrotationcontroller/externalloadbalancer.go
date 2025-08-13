@@ -18,14 +18,14 @@ func (c *CertRotationController) syncExternalLoadBalancerHostnames(ctx context.C
 	}
 	hostname := infrastructureConfig.Status.APIServerURL
 	if len(hostname) == 0 {
-		klog.Warningf("Failed to set external loadbalancer: APIServerURL is not set")
+		klog.WarningfWithCtx(ctx, "Failed to set external loadbalancer: APIServerURL is not set")
 		return nil
 	}
 	hostname = strings.Replace(hostname, "https://", "", 1)
 	hostname_arr := strings.Split(hostname, ":")
 	hostname = hostname_arr[0]
 
-	klog.V(2).Infof("syncing external loadbalancer hostnames: %v", hostname)
+	klog.V(2).InfofWithCtx(ctx, "syncing external loadbalancer hostnames: %v", hostname)
 	c.externalLoadBalancer.setHostnames([]string{hostname})
 	return nil
 }

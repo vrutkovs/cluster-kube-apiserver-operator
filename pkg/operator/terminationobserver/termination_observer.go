@@ -143,7 +143,7 @@ func (c *TerminationObserver) sync(ctx context.Context, key any) error {
 
 			// record the current pod creationTimestamp as "termination" timestamp for the previous API server.
 			c.apiServerTerminationTime[pod.Name] = pod.CreationTimestamp.Time
-			klog.Infof("Observed termination of API server pod %q at %s", pod.Name, pod.CreationTimestamp.Time)
+			klog.InfofWithCtx(ctx, "Observed termination of API server pod %q at %s", pod.Name, pod.CreationTimestamp.Time)
 		}
 	}
 
@@ -158,8 +158,8 @@ func (c *TerminationObserver) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	klog.Infof("Starting TerminationObserver")
-	defer klog.Infof("Shutting down TerminationObserver")
+	klog.InfofWithCtx(ctx, "Starting TerminationObserver")
+	defer klog.InfofWithCtx(ctx, "Shutting down TerminationObserver")
 	if !cache.WaitForCacheSync(ctx.Done(), c.cachesToSync...) {
 		return
 	}

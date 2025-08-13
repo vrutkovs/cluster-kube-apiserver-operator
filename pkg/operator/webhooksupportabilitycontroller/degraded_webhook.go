@@ -160,7 +160,7 @@ func (c *webhookSupportabilityController) assertConnect(ctx context.Context, web
 		if err != nil {
 			if i != 2 {
 				// log warning since only last one is reported
-				klog.Warningf("failed to connect to webhook %q via service %q: %v", webhookName, net.JoinHostPort(host, port), err)
+				klog.WarningfWithCtx(ctx, "failed to connect to webhook %q via service %q: %v", webhookName, net.JoinHostPort(host, port), err)
 			}
 			continue
 		}

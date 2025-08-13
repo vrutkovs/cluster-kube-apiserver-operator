@@ -55,7 +55,8 @@ func (o *minimumKubeletVersionObserver) ObserveMinimumKubeletVersion(ctx context
 	if err != nil {
 		// if config/v1/node/cluster object is not found, that can be treated as a non-error case, but raise a warning
 		if apierrors.IsNotFound(err) {
-			klog.Warningf("ObserveMinimumKubeletVersion: nodes.%s/cluster not found", configv1.GroupName)
+			klog.WarningfWithCtx(ctx, "ObserveMinimumKubeletVersion: nodes.%s/cluster not found", configv1.GroupName)
+			klog.RecordError(ctx, err)
 		} else {
 			errs = append(errs, err)
 		}

@@ -211,7 +211,8 @@ func (o *apiServerObserver) observe(ctx context.Context, genericListers configob
 
 	// if something went wrong, keep the previously observed config and resources
 	if err != nil {
-		klog.Warningf("error getting apiservers.%s/cluster: %v", configv1.GroupName, err)
+		klog.WarningfWithCtx(ctx, "error getting apiservers.%s/cluster: %v", configv1.GroupName, err)
+		klog.RecordError(ctx, err)
 		return previouslyObservedConfig, append(errs, err)
 	}
 
@@ -219,14 +220,15 @@ func (o *apiServerObserver) observe(ctx context.Context, genericListers configob
 
 	// if we get error during observation, skip the merging and return previous config and errors.
 	if len(errs) > 0 {
-		klog.Warningf("errors during apiservers.%s/cluster processing: %+v", configv1.GroupName, errs)
+		klog.WarningfWithCtx(ctx, "errors during apiservers.%s/cluster processing: %+v", configv1.GroupName, errs)
 		return previouslyObservedConfig, errs
 	}
 
 	// default to deleting previous resources, and then merge in observed resources rules
 	resourceSyncRules := deleteSyncRules(o.resourceNames...)
 	if err := mergo.Merge(&resourceSyncRules, &observedResources, mergo.WithOverride); err != nil {
-		klog.Warningf("merging resource sync rules failed: %v", err)
+		klog.WarningfWithCtx(ctx, "merging resource sync rules failed: %v", err)
+		klog.RecordError(ctx, err)
 	}
 
 	errs = append(errs, syncObservedResources(resourceSync, resourceSyncRules)...)

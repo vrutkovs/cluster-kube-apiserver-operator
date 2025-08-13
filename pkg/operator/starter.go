@@ -186,9 +186,9 @@ func RunOperator(ctx context.Context, controllerContext *controllercmd.Controlle
 	select {
 	case <-featureGateAccessor.InitialFeatureGatesObserved():
 		featureGates, _ := featureGateAccessor.CurrentFeatureGates()
-		klog.Infof("FeatureGates initialized: knownFeatureGates=%v", featureGates.KnownFeatures())
+		klog.InfofWithCtx(ctx, "FeatureGates initialized: knownFeatureGates=%v", featureGates.KnownFeatures())
 	case <-time.After(1 * time.Minute):
-		klog.Errorf("timed out waiting for FeatureGate detection")
+		klog.ErrorfWithCtx(ctx, "timed out waiting for FeatureGate detection")
 		return fmt.Errorf("timed out waiting for FeatureGate detection")
 	}
 
@@ -577,7 +577,7 @@ func installerErrorInjector(operatorClient v1helpers.StaticPodOperatorClient) fu
 		// get UnsupportedConfigOverrides
 		spec, _, _, err := operatorClient.GetOperatorState(ctx)
 		if err != nil {
-			klog.Warningf("failed to get operator/v1 spec for error injection: %v", err)
+			klog.WarningfWithCtx(ctx, "failed to get operator/v1 spec for error injection: %v", err)
 			return nil // ignore error
 		}
 		if len(spec.UnsupportedConfigOverrides.Raw) == 0 {
@@ -585,7 +585,7 @@ func installerErrorInjector(operatorClient v1helpers.StaticPodOperatorClient) fu
 		}
 		var obj map[string]interface{}
 		if err := json.Unmarshal(spec.UnsupportedConfigOverrides.Raw, &obj); err != nil {
-			klog.Warningf("failed to unmarshal operator/v1 spec.unsupportedConfigOverrides for error injection: %v", err)
+			klog.WarningfWithCtx(ctx, "failed to unmarshal operator/v1 spec.unsupportedConfigOverrides for error injection: %v", err)
 			return nil
 		}
 

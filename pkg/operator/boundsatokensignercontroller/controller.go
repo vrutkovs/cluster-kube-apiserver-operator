@@ -121,7 +121,7 @@ func (c *BoundSATokenSignerController) ensureNextOperatorSigningSecret(ctx conte
 	// Create or update the secret if it is missing or lacks the expected keypair data
 	needKeypair := secret == nil || len(secret.Data[PrivateKeyKey]) == 0 || len(secret.Data[PublicKeyKey]) == 0
 	if needKeypair {
-		klog.V(2).Infof("Creating a new signing secret for bound service account tokens.")
+		klog.V(2).InfofWithCtx(ctx, "Creating a new signing secret for bound service account tokens.")
 		span.AddEvent("Creating a new signing secret for bound service account tokens.")
 		newSecret, err := newNextSigningSecret()
 		if err != nil {
@@ -276,9 +276,9 @@ func (c *BoundSATokenSignerController) ensureOperandSigningSecret(ctx context.Co
 			return err
 		}
 		if syncAllowed {
-			klog.V(2).Info("Promoting the secret containing the keypair used to sign bound service account tokens to the operand namespace.")
+			klog.V(2).InfofWithCtx(ctx, "Promoting the secret containing the keypair used to sign bound service account tokens to the operand namespace.")
 		} else {
-			klog.V(2).Info("Promotion of the secret containing the keypair used to sign bound service account tokens is pending distribution of its public key to master nodes.")
+			klog.V(2).InfofWithCtx(ctx, "Promotion of the secret containing the keypair used to sign bound service account tokens is pending distribution of its public key to master nodes.")
 		}
 	}
 	span.AddEvent("syncAllowed")

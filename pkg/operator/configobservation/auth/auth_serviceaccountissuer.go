@@ -90,7 +90,8 @@ func observedConfig(ctx context.Context, existingConfig map[string]interface{},
 
 	operator, err := getOperator(ctx, "cluster")
 	if apierrors.IsNotFound(err) {
-		klog.Warningf("kubeapiserver.operators.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "kubeapiserver.operators.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		operator = &operatorv1.KubeAPIServer{}
 	} else if err != nil {
 		return existingConfig, append(errs, err)

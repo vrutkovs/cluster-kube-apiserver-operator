@@ -169,7 +169,7 @@ func (r *backoffEventRecorder) event(eventType, reason, message string) {
 		select {
 		case <-r.backoffTicker.C:
 			// backoff period has passed
-			klog.V(1).Info("Resuming connectivity event recording.")
+			klog.V(1).Infof("Resuming connectivity event recording.")
 			r.backoffTicker = nil
 			r.longWindowCount = 0
 			r.shortWindowCount = 0

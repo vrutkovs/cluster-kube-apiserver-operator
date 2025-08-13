@@ -32,7 +32,8 @@ func ObserveDefaultNodeSelector(ctx context.Context, genericListers configobserv
 	observedConfig := map[string]interface{}{}
 	schedulerConfig, err := listers.SchedulerLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
-		klog.Warningf("scheduler.config.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "scheduler.config.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		return observedConfig, errs
 	}
 	if err != nil {

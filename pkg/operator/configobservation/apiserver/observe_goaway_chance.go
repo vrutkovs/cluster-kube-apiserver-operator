@@ -29,7 +29,8 @@ func ObserveGoawayChance(ctx context.Context, genericListers configobserver.List
 	if err != nil {
 		// we got an error so without the infrastructure object we are not able to determine the type of platform we are running on
 		if apierrors.IsNotFound(err) {
-			klog.Warningf("ObserveGoawayChance: infras.%s/cluster not found", configv1.GroupName)
+			klog.WarningfWithCtx(ctx, "ObserveGoawayChance: infras.%s/cluster not found", configv1.GroupName)
+			klog.RecordError(ctx, err)
 		} else {
 			errs = append(errs, err)
 		}

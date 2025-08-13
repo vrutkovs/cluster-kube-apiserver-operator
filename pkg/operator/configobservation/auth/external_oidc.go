@@ -68,7 +68,8 @@ func (o *externalOIDC) ObserveExternalOIDC(ctx context.Context, genericListers c
 	auth, err := listers.AuthConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		recorder.Eventf("ObserveExternalOIDC", "authentications.config.openshift.io/cluster: not found")
-		klog.Warningf("authentications.config.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "authentications.config.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		return existingConfig, nil
 	} else if err != nil {
 		return existingConfig, []error{err}
@@ -102,7 +103,7 @@ func (o *externalOIDC) ObserveExternalOIDC(ctx context.Context, genericListers c
 		return existingConfig, []error{err}
 
 	} else if sourceAuthConfig == nil {
-		klog.Warningf("configmap %s/%s not found; skipping configuration of OIDC", SourceAuthConfigCMNamespace, AuthConfigCMName)
+		klog.WarningfWithCtx(ctx, "configmap %s/%s not found; skipping configuration of OIDC", SourceAuthConfigCMNamespace, AuthConfigCMName)
 		return existingConfig, nil
 	}
 

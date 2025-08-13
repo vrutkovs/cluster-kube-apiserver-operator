@@ -44,7 +44,7 @@ func (c *CertRotationController) syncServiceHostnames(ctx context.Context) error
 		hostnames.Insert(ip.String())
 	}
 
-	klog.V(2).Infof("syncing servicenetwork hostnames: %v", hostnames.List())
+	klog.V(2).InfofWithCtx(ctx, "syncing servicenetwork hostnames: %v", hostnames.List())
 	c.serviceNetwork.setHostnames(hostnames.List())
 	return nil
 }

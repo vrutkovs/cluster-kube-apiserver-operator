@@ -19,13 +19,13 @@ func (c *CertRotationController) syncInternalLoadBalancerHostnames(ctx context.C
 	hostname := infrastructureConfig.Status.APIServerInternalURL
 	// if hostname is not set do not panic with slice bounds out of range
 	if len(hostname) == 0 {
-		klog.Warningf("Failed to set internal loadbalancer: APIServerInternalURL is not set")
+		klog.WarningfWithCtx(ctx, "Failed to set internal loadbalancer: APIServerInternalURL is not set")
 		return nil
 	}
 	hostname = strings.Replace(hostname, "https://", "", 1)
 	hostname = hostname[0:strings.LastIndex(hostname, ":")]
 
-	klog.V(2).Infof("syncing internal loadbalancer hostnames: %v", hostname)
+	klog.V(2).InfofWithCtx(ctx, "syncing internal loadbalancer hostnames: %v", hostname)
 	c.internalLoadBalancer.setHostnames([]string{hostname})
 	return nil
 }

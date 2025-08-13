@@ -38,7 +38,8 @@ func ObserveInternalRegistryHostname(ctx context.Context, genericListers configo
 	observedConfig := map[string]interface{}{}
 	configImage, err := listers.ImageConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
-		klog.Warningf("image.config.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "image.config.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		return observedConfig, errs
 	}
 	if err != nil {
@@ -82,7 +83,8 @@ func ObserveExternalRegistryHostnames(ctx context.Context, genericListers config
 	observedConfig := map[string]interface{}{}
 	configImage, err := listers.ImageConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
-		klog.Warningf("image.config.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "image.config.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		return observedConfig, errs
 	}
 	if err != nil {
@@ -132,7 +134,8 @@ func ObserveAllowedRegistriesForImport(ctx context.Context, genericListers confi
 	observedConfig := map[string]interface{}{}
 	configImage, err := listers.ImageConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
-		klog.Warningf("image.config.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "image.config.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		return observedConfig, errs
 	}
 	if err != nil {

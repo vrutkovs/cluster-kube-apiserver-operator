@@ -79,11 +79,11 @@ func (c *CABundleController) Run(ctx context.Context) {
 	// FIXME: These are missing a wait group to track goroutines and handle graceful termination
 	// (@deads2k wants time to think it through)
 
-	klog.Info("Starting CA bundle controller")
+	klog.Infof("Starting CA bundle controller")
 	defer func() {
-		klog.Info("Shutting down CA bundle controller")
+		klog.Infof("Shutting down CA bundle controller")
 		c.queue.ShutDown()
-		klog.Info("CA bundle controller shut down")
+		klog.Infof("CA bundle controller shut down")
 	}()
 
 	if !cache.WaitForNamedCacheSync("CABundleController", ctx.Done(), c.cachesToSync...) {
@@ -138,7 +138,7 @@ func (c *CABundleController) sync(ctx context.Context) error {
 	}
 
 	if changed {
-		klog.V(2).Info("Refreshed client CA bundle.")
+		klog.V(2).InfofWithCtx(ctx, "Refreshed client CA bundle.")
 	}
 
 	return nil

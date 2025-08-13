@@ -871,7 +871,7 @@ func newCertRotationController(
 
 func (c *CertRotationController) WaitForReady(ctx context.Context, stopCh <-chan struct{}) {
 	klog.Infof("Waiting for CertRotation")
-	defer klog.Infof("Finished waiting for CertRotation")
+	defer klog.InfofWithCtx(ctx, "Finished waiting for CertRotation")
 
 	if !cache.WaitForCacheSync(stopCh, c.cachesToSync...) {
 		utilruntime.HandleError(fmt.Errorf("caches did not sync"))
@@ -906,7 +906,7 @@ func (c *CertRotationController) RunOnce() error {
 
 func (c *CertRotationController) Run(ctx context.Context, workers int) {
 	klog.Infof("Starting CertRotation")
-	defer klog.Infof("Shutting down CertRotation")
+	defer klog.InfofWithCtx(ctx, "Shutting down CertRotation")
 	c.WaitForReady(ctx, ctx.Done())
 
 	go wait.UntilWithContext(ctx, c.runServiceHostnames, time.Second)

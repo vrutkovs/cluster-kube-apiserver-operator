@@ -52,7 +52,8 @@ func ObserveAuthMetadata(ctx context.Context, genericListers configobserver.List
 	authConfig, err := listers.AuthConfigLister.Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		recorder.Eventf("ObserveAuthMetadataConfigMap", "authentications.config.openshift.io/cluster: not found")
-		klog.Warningf("authentications.config.openshift.io/cluster: not found")
+		klog.WarningfWithCtx(ctx, "authentications.config.openshift.io/cluster: not found")
+		klog.RecordError(ctx, err)
 		return observedConfig, errs
 	}
 	if err != nil {
@@ -70,7 +71,7 @@ func ObserveAuthMetadata(ctx context.Context, genericListers configobserver.List
 		specConfigMap := authConfig.Spec.OAuthMetadata.Name
 		statusConfigMap := authConfig.Status.IntegratedOAuthMetadata.Name
 		if len(statusConfigMap) == 0 {
-			klog.V(5).Infof("no integrated oauth metadata configmap observed from status")
+			klog.V(5).InfofWithCtx(ctx, "no integrated oauth metadata configmap observed from status")
 		}
 
 		// Spec configMap takes precedence over Status.
@@ -82,7 +83,7 @@ func ObserveAuthMetadata(ctx context.Context, genericListers configobserver.List
 			sourceConfigMap = statusConfigMap
 			sourceNamespace = managedNamespace
 		default:
-			klog.V(5).Infof("no authentication config metadata specified")
+			klog.V(5).InfofWithCtx(ctx, "no authentication config metadata specified")
 		}
 
 	case configv1.AuthenticationTypeNone:

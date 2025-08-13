@@ -419,7 +419,7 @@ func ManageClientCABundle(ctx context.Context, lister corev1listers.ConfigMapLis
 		if err != nil {
 			return nil, false, err
 		}
-		klog.V(2).Infof("Created client CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
+		klog.V(2).InfofWithCtx(ctx, "Created client CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
 		return caBundleConfigMap, true, nil
 	} else if updateRequired {
 		caBundleConfigMap, err = client.ConfigMaps(operatorclient.TargetNamespace).Update(ctx, requiredConfigMap, metav1.UpdateOptions{})
@@ -427,7 +427,7 @@ func ManageClientCABundle(ctx context.Context, lister corev1listers.ConfigMapLis
 		if err != nil {
 			return nil, false, err
 		}
-		klog.V(2).Infof("Updated client CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
+		klog.V(2).InfofWithCtx(ctx, "Updated client CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
 		return caBundleConfigMap, true, nil
 	}
 
@@ -482,7 +482,7 @@ func manageKubeAPIServerCABundle(ctx context.Context, lister corev1listers.Confi
 		if err != nil {
 			return nil, false, err
 		}
-		klog.V(2).Infof("Created kube apiserver CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
+		klog.V(2).InfofWithCtx(ctx, "Created kube apiserver CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
 		return caBundleConfigMap, true, nil
 	} else if updateRequired {
 		caBundleConfigMap, err := client.ConfigMaps(operatorclient.TargetNamespace).Update(ctx, requiredConfigMap, metav1.UpdateOptions{})
@@ -490,7 +490,7 @@ func manageKubeAPIServerCABundle(ctx context.Context, lister corev1listers.Confi
 		if err != nil {
 			return nil, false, err
 		}
-		klog.V(2).Infof("Updated kube apiserver CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
+		klog.V(2).InfofWithCtx(ctx, "Updated kube apiserver CA bundle configmap %s/%s", caBundleConfigMap.Namespace, caBundleConfigMap.Name)
 		return caBundleConfigMap, true, nil
 	}
 

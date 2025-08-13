@@ -123,9 +123,9 @@ func (o *Options) Run(ctx context.Context, clock clock.Clock) error {
 	select {
 	case <-featureGateAccessor.InitialFeatureGatesObserved():
 		featureGates, _ := featureGateAccessor.CurrentFeatureGates()
-		klog.Infof("FeatureGates initialized: knownFeatureGates=%v", featureGates.KnownFeatures())
+		klog.InfofWithCtx(ctx, "FeatureGates initialized: knownFeatureGates=%v", featureGates.KnownFeatures())
 	case <-time.After(1 * time.Minute):
-		klog.Errorf("timed out waiting for FeatureGate detection")
+		klog.ErrorfWithCtx(ctx, "timed out waiting for FeatureGate detection")
 		return fmt.Errorf("timed out waiting for FeatureGate detection")
 	}
 
