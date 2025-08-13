@@ -18,6 +18,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	goruntime "runtime"
 
@@ -32,6 +33,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -149,18 +151,15 @@ func (s *genericLister) List(ctx context.Context, selector labels.Selector) (ret
 	err = ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(runtime.Object))
 	})
+	if err != nil {
+		span.RecordError(err)
+	}
+	validUTF8String, _ := json.MarshalIndent(ret, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return ret, err
 }
 
 func (s *genericLister) ByNamespace(ctx context.Context, namespace string) GenericNamespaceLister {
-	tracer := otel.GetTracerProvider().Tracer("client-go")
-	pc, _, _, _ := goruntime.Caller(1)
-	file, line := goruntime.FuncForPC(pc).FileLine(pc)
-	ctx, span := tracer.Start(ctx, "genericLister.ByNamespace", trace.WithAttributes(
-		attribute.String("name", namespace),
-		attribute.String("location", fmt.Sprintf("%s:%d", file, line)),
-	))
-	defer span.End()
 	return &genericNamespaceLister{indexer: s.indexer, namespace: namespace, resource: s.resource}
 }
 
@@ -176,11 +175,15 @@ func (s *genericLister) Get(ctx context.Context, name string) (runtime.Object, e
 
 	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("error: %v", err))
 		return nil, err
 	}
 	if !exists {
+		span.RecordError(errors.NewNotFound(s.resource, name))
 		return nil, errors.NewNotFound(s.resource, name)
 	}
+	validUTF8String, _ := json.MarshalIndent(obj, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return obj.(runtime.Object), nil
 }
 
@@ -202,6 +205,8 @@ func (s *genericNamespaceLister) List(ctx context.Context, selector labels.Selec
 	err = ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(runtime.Object))
 	})
+	validUTF8String, _ := json.MarshalIndent(ret, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return ret, err
 }
 
@@ -217,10 +222,14 @@ func (s *genericNamespaceLister) Get(ctx context.Context, name string) (runtime.
 
 	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("error: %v", err))
 		return nil, err
 	}
 	if !exists {
+		span.RecordError(errors.NewNotFound(s.resource, name))
 		return nil, errors.NewNotFound(s.resource, name)
 	}
+	validUTF8String, _ := json.MarshalIndent(obj, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return obj.(runtime.Object), nil
 }

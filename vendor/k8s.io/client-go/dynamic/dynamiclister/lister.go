@@ -18,11 +18,13 @@ package dynamiclister
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -75,11 +77,15 @@ func (l *dynamicLister) Get(ctx context.Context, name string) (*unstructured.Uns
 
 	obj, exists, err := l.indexer.GetByKey(name)
 	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("error: %v", err))
 		return nil, err
 	}
 	if !exists {
+		span.RecordError(errors.NewNotFound(l.gvr.GroupResource(), name))
 		return nil, errors.NewNotFound(l.gvr.GroupResource(), name)
 	}
+	validUTF8String, _ := json.MarshalIndent(obj, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return obj.(*unstructured.Unstructured), nil
 }
 
@@ -109,6 +115,12 @@ func (l *dynamicNamespaceLister) List(ctx context.Context, selector labels.Selec
 	err = cache.ListAllByNamespace(l.indexer, l.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*unstructured.Unstructured))
 	})
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	validUTF8String, _ := json.MarshalIndent(ret, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return ret, err
 }
 

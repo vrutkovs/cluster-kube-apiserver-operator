@@ -184,6 +184,9 @@ func (c *Client[T]) Get(ctx context.Context, name string, options metav1.GetOpti
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }
 
@@ -231,6 +234,9 @@ func (l *alsoLister[T, L]) list(ctx context.Context, opts metav1.ListOptions) (L
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(list)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return list, err
 }
 
@@ -291,6 +297,9 @@ func (c *Client[T]) Create(ctx context.Context, obj T, opts metav1.CreateOptions
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }
 
@@ -318,6 +327,9 @@ func (c *Client[T]) Update(ctx context.Context, obj T, opts metav1.UpdateOptions
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }
 
@@ -346,6 +358,9 @@ func (c *Client[T]) UpdateStatus(ctx context.Context, obj T, opts metav1.UpdateO
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }
 
@@ -415,6 +430,9 @@ func (c *Client[T]) Patch(ctx context.Context, name string, pt types.PatchType, 
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }
 
@@ -454,6 +472,9 @@ func (a *alsoApplier[T, C]) Apply(ctx context.Context, obj C, opts metav1.ApplyO
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }
 
@@ -495,5 +516,8 @@ func (a *alsoApplier[T, C]) ApplyStatus(ctx context.Context, obj C, opts metav1.
 		Do(ctx).
 		Trace(ctx, span, "response received").
 		Into(result)
+	if err != nil {
+		span.RecordError(err)
+	}
 	return result, err
 }

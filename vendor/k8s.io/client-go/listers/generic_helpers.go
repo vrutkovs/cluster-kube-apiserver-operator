@@ -18,6 +18,7 @@ package listers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	goruntime "runtime"
 
@@ -29,6 +30,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -80,10 +82,15 @@ func (l ResourceIndexer[T]) Get(ctx context.Context, name string) (T, error) {
 	}
 	obj, exists, err := l.indexer.GetByKey(key)
 	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("error: %v", err))
+		span.RecordError(err)
 		return *new(T), err
 	}
 	if !exists {
+		span.RecordError(errors.NewNotFound(l.resource, name))
 		return *new(T), errors.NewNotFound(l.resource, name)
 	}
+	validUTF8String, _ := json.MarshalIndent(obj, "", "    ")
+	span.SetAttributes(attribute.String("result", string(validUTF8String)))
 	return obj.(T), nil
 }

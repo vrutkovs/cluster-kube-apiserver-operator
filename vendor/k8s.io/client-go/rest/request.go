@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -1313,13 +1314,35 @@ func (r *Request) Do(ctx context.Context) Result {
 }
 
 func (r *Request) Trace(ctx context.Context, span trace.Span, msg string) *Request {
-	span.AddEvent(msg)
+	opts := []trace.EventOption{
+		trace.WithAttributes(attribute.String("host", r.URL().Host)),
+		trace.WithAttributes(attribute.String("path", r.URL().Path)),
+		trace.WithAttributes(attribute.String("query-params", r.URL().RawQuery)),
+		trace.WithAttributes(attribute.String("verb", r.verb)),
+	}
 	for k, values := range r.headers {
-		key := fmt.Sprintf("request-%s", k)
+		key := fmt.Sprintf("header-%s", k)
 		for _, v := range values {
-			span.SetAttributes(attribute.String(key, v))
+			opts = append(opts, trace.WithAttributes(attribute.String(key, v)))
 		}
 	}
+	if r.bodyBytes != nil {
+		encoder, err := r.contentConfig.Negotiator.Decoder(r.contentConfig.ContentType, nil)
+		if err == nil {
+			obj, _, err := encoder.Decode(r.bodyBytes, nil, nil)
+			if err == nil {
+				validUTF8String, _ := json.MarshalIndent(obj, "", "    ")
+				opts = append(opts, trace.WithAttributes(attribute.String("body", string(validUTF8String))))
+			} else {
+				span.RecordError(err, trace.WithAttributes(attribute.String("body", fmt.Sprintf("decode-error: %v", err))))
+			}
+		} else {
+			span.RecordError(err, trace.WithAttributes(attribute.String("body", fmt.Sprintf("encoder-error: %v", err))))
+		}
+	} else {
+		opts = append(opts, trace.WithAttributes(attribute.String("body", "nil")))
+	}
+	span.AddEvent(msg, opts...)
 	return r
 }
 
@@ -1626,13 +1649,31 @@ func (r Result) ContentType(contentType *string) Result {
 }
 
 func (r Result) Trace(ctx context.Context, span trace.Span, msg string) Result {
-	span.AddEvent(msg)
+	opts := []trace.EventOption{
+		trace.WithAttributes(attribute.Int("status-code", r.statusCode)),
+		trace.WithAttributes(attribute.String("content-type", r.contentType)),
+	}
 	for k, values := range r.headers {
-		key := fmt.Sprintf("response-%s", k)
+		key := fmt.Sprintf("header-%s", k)
 		for _, v := range values {
-			span.SetAttributes(attribute.String(key, v))
+			opts = append(opts, trace.WithAttributes(attribute.String(key, v)))
 		}
 	}
+
+	if len(r.body) == 0 {
+		opts = append(opts, trace.WithAttributes(attribute.String("body", "nil")))
+	} else if r.decoder == nil {
+		opts = append(opts, trace.WithAttributes(attribute.String("body", "decoder-unset")))
+	} else {
+		obj, _, err := r.decoder.Decode(r.body, nil, nil)
+		if err != nil {
+			opts = append(opts, trace.WithAttributes(attribute.String("body", fmt.Sprintf("decode-error %v", err))))
+		} else {
+			validUTF8String, _ := json.MarshalIndent(obj, "", "    ")
+			opts = append(opts, trace.WithAttributes(attribute.String("body", string(validUTF8String))))
+		}
+	}
+	span.AddEvent(msg, opts...)
 	return r
 }
 

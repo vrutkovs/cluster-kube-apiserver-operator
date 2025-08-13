@@ -139,6 +139,7 @@ func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Un
 	if len(subresources) > 0 {
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
+			span.RecordError(err)
 			return nil, err
 		}
 		name = accessor.GetName()
@@ -148,6 +149,7 @@ func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Un
 	}
 	span.SetAttributes(attribute.String("name", name))
 	if err := validateNamespaceWithOptionalName(c.namespace, name); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
@@ -160,6 +162,7 @@ func (c *dynamicResourceClient) Create(ctx context.Context, obj *unstructured.Un
 		Trace(ctx, span, "request ready").
 		Do(ctx).
 		Trace(ctx, span, "response received").Into(&out); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
@@ -197,6 +200,7 @@ func (c *dynamicResourceClient) Update(ctx context.Context, obj *unstructured.Un
 		Trace(ctx, span, "request ready").
 		Do(ctx).
 		Trace(ctx, span, "response received").Into(&out); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
@@ -234,6 +238,7 @@ func (c *dynamicResourceClient) UpdateStatus(ctx context.Context, obj *unstructu
 		Trace(ctx, span, "request ready").
 		Do(ctx).
 		Trace(ctx, span, "response received").Into(&out); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 
@@ -304,6 +309,7 @@ func (c *dynamicResourceClient) Get(ctx context.Context, name string, opts metav
 		Trace(ctx, span, "request ready").
 		Do(ctx).
 		Trace(ctx, span, "response received").Into(&out); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 	return &out, nil
@@ -404,6 +410,7 @@ func (c *dynamicResourceClient) Patch(ctx context.Context, name string, pt types
 		Body(data).
 		SpecificallyVersionedParams(&opts, dynamicParameterCodec, versionV1).
 		Do(ctx).Into(&out); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 	return &out, nil
@@ -446,6 +453,7 @@ func (c *dynamicResourceClient) Apply(ctx context.Context, name string, obj *uns
 		AbsPath(append(c.makeURLSegments(name), subresources...)...).
 		SpecificallyVersionedParams(&patchOpts, dynamicParameterCodec, versionV1).
 		Do(ctx).Into(&out); err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 	return &out, nil
