@@ -222,8 +222,8 @@ github.com/vrutkovs/klog/v2 v2.0.0-20250813113851-0481beef9e99 h1:DOlfHpFD+qKT2b
 github.com/vrutkovs/klog/v2 v2.0.0-20250813113851-0481beef9e99/go.mod h1:0kkXxJ4w2yULlxeaf+U7pOCUCTlW+0iI+bvDZQ4zPI4=
 github.com/vrutkovs/kube-aggregator v0.0.0-20250812082856-a3f54eada162 h1:i1E75PuGZ+xRmcNYG21Ch3Bmr2SaMijNz0XmixDxTJM=
 github.com/vrutkovs/kube-aggregator v0.0.0-20250812082856-a3f54eada162/go.mod h1:GlH1mLT8gkTYHC+SwHz8o795C8XaMu/aI/rnfvS1leI=
-github.com/vrutkovs/library-go v0.0.0-20250812083029-1a5c8136bbbb h1:lj5Nmk1k0Ab7J32QE+A9oQ/LT0Yht1Lm5JWIFjD+FMk=
-github.com/vrutkovs/library-go v0.0.0-20250812083029-1a5c8136bbbb/go.mod h1:KgbN/G9K/rw0arcpf15fqXT64eVZ/UB5xaulAjoYNTw=
+github.com/vrutkovs/library-go v0.0.0-20250813120138-8398a0307529 h1:vYQqYoJm7QU+yojmUzIPaOJkwyfV9c5JTWTF8vAQllc=
+github.com/vrutkovs/library-go v0.0.0-20250813120138-8398a0307529/go.mod h1:wtw9A4j1+W1q2HGAXoQorJ+3MkA0oINSFLA9ezj1Azs=
 github.com/vrutkovs/openshift-client-go v0.0.0-20250812082558-38e9cc138c53 h1:qMG/K2SMLHGSISrofvlUCHdHPFQuqYeRwyzKH9AKWgk=
 github.com/vrutkovs/openshift-client-go v0.0.0-20250812082558-38e9cc138c53/go.mod h1:s7IrcSn2JBxJFQRqN+SuXEH51bFyaOuzJQLUzYm7Iv8=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
